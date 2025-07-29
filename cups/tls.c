@@ -71,8 +71,10 @@ static bool		http_save_file(const char *path, const char *common_name, const cha
 
 #ifdef HAVE_OPENSSL
 #  include "tls-openssl.c"
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
 #  include "tls-gnutls.c"
+#else // HAVE_MBEDTLS
+#  include "tls-mbedtls.c"
 #endif // HAVE_OPENSSL
 
 
@@ -430,6 +432,7 @@ http_check_roots(const char *creds)	// I - Credentials
     cups_dir_t		*dir;		// Directory
     cups_dentry_t	*dent;		// Directory entry
     const char		*ext;		// Pointer to filename extension
+    // need to change these to something like /lfs/etc/ssl/certs and have prereq of mcuboot-ing some certs on the device
     static const char * const root_dirs[] =
     {					// Root certificate stores
       "/etc/ssl/certs",
@@ -520,7 +523,7 @@ http_copy_file(const char *path,	// I - Directory
   if (fstat(fd, &fileinfo))
     goto done;
 
-  if (fileinfo.st_size > 65536)
+  if (fileinfo.st_size > 32768)
   {
     close(fd);
     return (NULL);

@@ -45,7 +45,7 @@
 //                              default-tls)
 //
 
-#include <config.h>
+#include <cups/config.h>
 #include <cups/cups.h>
 #include <errno.h>
 #include <unistd.h>

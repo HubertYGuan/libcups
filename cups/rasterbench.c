@@ -9,7 +9,7 @@
 // information.
 //
 
-#include <config.h>
+#include <cups/config.h>
 #include <cups/raster.h>
 #include <stdio.h>
 #include <stdlib.h>

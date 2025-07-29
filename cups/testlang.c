@@ -13,7 +13,7 @@
 // information.
 //
 
-#include <config.h>
+#include <cups/config.h>
 #include "cups.h"
 #include "dir.h"
 #include "language.h"

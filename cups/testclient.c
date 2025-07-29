@@ -8,7 +8,7 @@
 // information.
 //
 
-#include <config.h>
+#include <cups/config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <cups/cups.h>

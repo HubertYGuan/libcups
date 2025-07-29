@@ -11,7 +11,7 @@
 
 #ifndef _CUPS_HTTP_PRIVATE_H_
 #  define _CUPS_HTTP_PRIVATE_H_
-#  include "config.h"
+#  include "cups/config.h"
 #  include <cups/language.h>
 #  include <stdlib.h>
 #  ifdef __sun
@@ -36,10 +36,16 @@
 #  elif defined(HAVE_GNUTLS)
 #    include <gnutls/gnutls.h>
 #    include <gnutls/x509.h>
+#  else // HAVE_MBEDTLS
+#    include <mbedtls/x509.h>
+#    include <mbedtls/ssl.h>
+#    include <mbedtls/pk.h>
 #  endif // HAVE_OPENSSL
 #  ifndef _WIN32
 #    include <net/if.h>
-#    include <resolv.h>
+#    ifdef HAVE_RESOLV_H
+#      include <resolv.h>
+#    endif
 #  endif // !_WIN32
 #  ifdef __cplusplus
 extern "C" {
@@ -51,7 +57,7 @@ extern "C" {
 //
 
 #  define _HTTP_MAX_BUFFER	32768	// Max length of data buffer
-#  define _HTTP_MAX_SBUFFER	65536	// Size of (de)compression buffer
+#  define _HTTP_MAX_SBUFFER	32768	// Size of (de)compression buffer
 #  define _HTTP_MAX_VALUE	256	// Max header field value length
 
 #  define _HTTP_TLS_NONE	0	// No TLS options
@@ -80,13 +86,21 @@ typedef struct _http_tls_credentials_s	// Internal credentials
   STACK_OF(X509) *certs;		// X.509 certificates
   EVP_PKEY	*key;			// Private key
 } _http_tls_credentials_t;
-#  else // HAVE_GNUTLS
+#  elif defined(HAVE_GNUTLS) // HAVE_GNUTLS
 typedef gnutls_session_t _http_tls_t;
 typedef struct _http_tls_credentials_s	// Internal credentials
 {
   size_t	use;			// Use count
   gnutls_certificate_credentials_t creds;
 					// X.509 certificates and private key
+} _http_tls_credentials_t;
+#  else // HAVE_MBEDTLS
+typedef mbedtls_ssl_context *_http_tls_t;
+typedef struct _http_tls_credentials_s
+{
+  size_t	use;			// Use count
+  mbedtls_x509_crt crt;    // X.509 certificates
+  mbedtls_pk_context pkctx;    // Key pair context
 } _http_tls_credentials_t;
 #  endif // HAVE_OPENSSL
 

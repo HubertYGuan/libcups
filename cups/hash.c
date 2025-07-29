@@ -12,8 +12,10 @@
 #include "md5-internal.h"
 #ifdef HAVE_OPENSSL
 #  include <openssl/evp.h>
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
 #  include <gnutls/crypto.h>
+#else // HAVE_MBEDTLS
+# include <psa/crypto.h>
 #endif // HAVE_OPENSSL
 
 
@@ -198,10 +200,13 @@ hash_data(const char    *algorithm,	// I - Algorithm
 #ifdef HAVE_OPENSSL
   const EVP_MD	*md = NULL;		// Message digest implementation
   EVP_MD_CTX	*ctx;			// Context
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS) // HAVE_GNUTLS
   gnutls_digest_algorithm_t alg = GNUTLS_DIG_UNKNOWN;
 					// Algorithm
   gnutls_hash_hd_t ctx;			// Context
+#else // HAVE_MBEDTLS
+  psa_algorithm_t alg = PSA_ALG_NONE;
+  psa_hash_operation_t operation = PSA_HASH_OPERATION_INIT; 
 #endif // HAVE_OPENSSL
 
 
@@ -263,7 +268,7 @@ hash_data(const char    *algorithm,	// I - Algorithm
     return ((ssize_t)hashlen);
   }
 
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS) // HAVE_GNUTLS
   if (!strcmp(algorithm, "sha"))
   {
     // SHA-1
@@ -303,6 +308,73 @@ hash_data(const char    *algorithm,	// I - Algorithm
 
     return ((ssize_t)hashlen);
   }
+#else // HAVE_MBEDTLS
+  if (!strcmp(algorithm, "sha"))
+  {
+    // SHA-1
+    alg = PSA_ALG_SHA_1;
+  }
+  else if (!strcmp(algorithm, "sha2-224"))
+  {
+    alg = PSA_ALG_SHA_224;
+  }
+  else if (!strcmp(algorithm, "sha2-256"))
+  {
+    alg = PSA_ALG_SHA_256;
+  }
+  else if (!strcmp(algorithm, "sha2-384"))
+  {
+    alg = PSA_ALG_SHA_384;
+  }
+  else if (!strcmp(algorithm, "sha2-512"))
+  {
+    alg = PSA_ALG_SHA_512;
+  }
+
+  if (alg != PSA_ALG_NONE)
+  {
+    if (psa_crypto_init())
+    {
+      DEBUG_puts("Failed to init crypto\n");
+      mbedtls_psa_crypto_free();
+      return -1;
+    }
+    if (psa_hash_setup(&operation, alg))
+    {
+      DEBUG_puts("Failed to setup hash\n");
+      mbedtls_psa_crypto_free();
+      return -1;
+    }
+    if (psa_hash_update(&operation, a, alen))
+    {
+      DEBUG_puts("Failed to update hash with block a\n");
+      mbedtls_psa_crypto_free();
+      return -1;
+    }
+    if (b && blen && psa_hash_update(&operation, b, blen))
+    {
+      DEBUG_puts("Failed to update hash with block b\n");
+      mbedtls_psa_crypto_free();
+      return -1;
+    }
+    if (psa_hash_finish(&operation, hashtemp, sizeof(hashtemp), &hashlen))
+    {
+      DEBUG_puts("Failed to finish calculating hash\n");
+      mbedtls_psa_crypto_free();
+      return -1;
+    }
+    if (hashlen > hashsize)
+    {
+      mbedtls_psa_crypto_free();
+      goto too_small;
+    }
+
+    memcpy(hash, hashtemp, hashlen);
+
+    mbedtls_psa_crypto_free();
+    return ((ssize_t)hashlen);
+  }
+  mbedtls_psa_crypto_free();
 #endif // HAVE_OPENSSL
 
   // Unknown hash algorithm...

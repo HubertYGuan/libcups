@@ -24,8 +24,9 @@
 #    include <netdb.h>
 #    include <netinet/in.h>
 #    include <arpa/inet.h>
-#    include <netinet/in_systm.h>
-#    include <netinet/ip.h>
+#    include <sys/types.h>
+#    include <stdint.h>
+// #    include <netinet/ip.h>
 #    if !defined(__APPLE__) || !defined(TCP_NODELAY)
 #      include <netinet/tcp.h>
 #    endif // !__APPLE__ || !TCP_NODELAY
@@ -33,7 +34,7 @@
 #      define AF_LOCAL AF_UNIX		// Older UNIX's have old names...
 #    endif // AF_UNIX && !AF_LOCAL
 #    ifdef AF_LOCAL
-#      include <sys/un.h>
+// #      include <sys/un.h>
 #    endif // AF_LOCAL
 #    if defined(LOCAL_PEERCRED) && !defined(SO_PEERCRED)
 #      define SO_PEERCRED LOCAL_PEERCRED

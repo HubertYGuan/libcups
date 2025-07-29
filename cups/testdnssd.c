@@ -7,7 +7,7 @@
 // information.
 //
 
-#include <config.h>
+#include <cups/config.h>
 #include "test-internal.h"
 #include "dnssd.h"
 #include "thread.h"

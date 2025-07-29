@@ -15,10 +15,15 @@
 #  include <openssl/ecdsa.h>
 #  include <openssl/evp.h>
 #  include <openssl/rsa.h>
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
 #  include <gnutls/gnutls.h>
 #  include <gnutls/abstract.h>
 #  include <gnutls/crypto.h>
+#else // HAVE_MBEDTLS
+#  include <psa/crypto.h>
+#  include <mbedtls/rsa.h>
+#  include <mbedtls/ecdsa.h>
+#  include <mbedtls/error.h>
 #endif // HAVE_OPENSSL
 
 
@@ -89,11 +94,17 @@ static BIGNUM	*make_bignum(cups_json_t *jwk, const char *key);
 static void	make_bnstring(const BIGNUM *bn, char *buffer, size_t bufsize);
 static EC_KEY	*make_ec_key(cups_json_t *jwk, bool verify);
 static RSA	*make_rsa(cups_json_t *jwk);
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
 static gnutls_datum_t *make_datum(cups_json_t *jwk, const char *key);
 static void	make_datstring(gnutls_datum_t *d, char *buffer, size_t bufsize);
 static gnutls_privkey_t make_private_key(cups_json_t *jwk);
 static gnutls_pubkey_t make_public_key(cups_json_t *jwk);
+#else // HAVE_MBEDTLS
+static int mbedtls_rsa_import_jwk(mbedtls_rsa_context *rsa_ctx, cups_json_t *jwk, bool verify);
+static int mbedtls_ecdsa_import_jwk(mbedtls_ecdsa_context *ecdsa_ctx, cups_json_t *jwk, bool verify);
+static int mbedtls_mpi_read_base64(mbedtls_mpi *mpi, cups_json_t *jwk, const char *key);
+static int mbedtls_mpi_write_base64(mbedtls_mpi *mpi, char *buffer, size_t bufsize);
+#define FAILED_TO_PARSE_JSON_VALUE -0x8000
 #endif // HAVE_OPENSSL
 static bool	make_signature(cups_jwt_t *jwt, cups_jwa_t alg, cups_json_t *jwk, unsigned char *signature, size_t *sigsize, const char **sigkid, cups_json_t **sigx5c);
 static char	*make_string(cups_jwt_t *jwt, bool with_signature);
@@ -382,12 +393,19 @@ cupsJWTHasValidSignature(
   EC_KEY	*ec;			// ECDSA public key
   static int	nids[] = { NID_sha256, NID_sha384, NID_sha512 };
 					// Hash NIDs
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
   gnutls_pubkey_t	key;		// Public key
   gnutls_datum_t	text_datum,	// Text datum
 			sig_datum;	// Signature datum
   static int algs[] = { GNUTLS_DIG_SHA256, GNUTLS_DIG_SHA384, GNUTLS_DIG_SHA512, GNUTLS_SIGN_ECDSA_SHA256, GNUTLS_SIGN_ECDSA_SHA384, GNUTLS_SIGN_ECDSA_SHA512 };
 					// Hash algorithms
+#else // HAVE_MBEDTLS
+  unsigned char hash[128];  // Hash
+  size_t hash_len;  // Hash length
+  mbedtls_rsa_context rsa_ctx;  // Public key RSA context
+  mbedtls_ecdsa_context ecdsa_ctx;  // Public key ECDSA context
+  static mbedtls_md_type_t algs[] = { MBEDTLS_MD_SHA256, MBEDTLS_MD_SHA384, MBEDTLS_MD_SHA512 };
+          // Message digest algorithms
 #endif // HAVE_OPENSSL
 
 
@@ -432,7 +450,7 @@ cupsJWTHasValidSignature(
 	  RSA_free(rsa);
         }
 
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
         if ((key = make_public_key(jwk)) != NULL)
         {
           text_datum.data = (unsigned char *)text;
@@ -444,6 +462,21 @@ cupsJWTHasValidSignature(
           ret = !gnutls_pubkey_verify_data2(key, algs[jwt->sigalg - CUPS_JWA_RS256], 0, &text_datum, &sig_datum);
           gnutls_pubkey_deinit(key);
         }
+#else // HAVE_MBEDTLS
+        mbedtls_rsa_init(&rsa_ctx);
+        hash_len = cupsHashData(cups_jwa_algorithms[jwt->sigalg], text, text_len, hash, sizeof(hash));
+        assert(hash_len > 0);
+
+        if (mbedtls_rsa_import_jwk(&rsa_ctx, jwk, true))
+        {
+          DEBUG_puts("Failed to import jwk in RSA\n");
+        }
+        else if ((ret = !mbedtls_rsa_rsassa_pkcs1_v15_verify(&rsa_ctx, algs[jwt->sigalg - CUPS_JWA_RS256], \
+                 hash_len, hash, jwt->signature)) == false)
+        {
+          DEBUG_puts("Failed to verify RSA signature\n");
+        }
+        mbedtls_rsa_free(&rsa_ctx);
 #endif // HAVE_OPENSSL
 
         // Free memory
@@ -484,7 +517,7 @@ cupsJWTHasValidSignature(
 	  EC_KEY_free(ec);
         }
 
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
         if ((key = make_public_key(jwk)) != NULL)
         {
 	  gnutls_datum_t r, s;		// Signature coordinates
@@ -503,6 +536,32 @@ cupsJWTHasValidSignature(
 	  gnutls_free(sig_datum.data);
           gnutls_pubkey_deinit(key);
         }
+#else
+        size_t sig_len = (int)jwt->sigsize / 2;
+        mbedtls_ecdsa_init(&ecdsa_ctx);
+        hash_len = cupsHashData(cups_jwa_algorithms[jwt->sigalg], text, text_len, hash, sizeof(hash));
+        assert(hash_len > 0);
+
+        if (mbedtls_ecdsa_import_jwk(&ecdsa_ctx, jwk, true))
+        {
+          DEBUG_puts("Failed to import jwk in ECDSA\n");
+        }
+        else
+        {
+          mbedtls_mpi r, s;
+          mbedtls_mpi_init(&r);
+          mbedtls_mpi_init(&s);
+          
+          mbedtls_mpi_read_binary(&r, jwt->signature, sig_len);
+          mbedtls_mpi_read_binary(&s, jwt->signature + sig_len, sig_len);
+
+          if ((ret = !mbedtls_ecdsa_verify(&ecdsa_ctx.grp, hash, hash_len, &ecdsa_ctx.Q, &r, &s)) == false)
+            DEBUG_puts("Failed to verify ecdsa signature\n");
+          
+          mbedtls_mpi_free(&r);
+          mbedtls_mpi_free(&s);
+        }
+        mbedtls_ecdsa_free(&ecdsa_ctx);
 #endif // HAVE_OPENSSL
 
         // Free memory
@@ -869,7 +928,7 @@ cupsJWTLoadCredentials(
 
   EVP_PKEY_free(pkey);
 
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
   gnutls_datum_t	dat_key;	// Private key data
   gnutls_privkey_t	pkey;		// Private key
   unsigned		bits;		// Private key size in bits
@@ -932,6 +991,92 @@ cupsJWTLoadCredentials(
   }
 
   gnutls_privkey_deinit(pkey);
+#else // 
+  mbedtls_ctr_drbg_context ctr_drbg;
+  mbedtls_entropy_context entropy;
+  mbedtls_entropy_init(&entropy);
+  mbedtls_ctr_drbg_init(&ctr_drbg);
+  if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0))
+  {
+    DEBUG_puts("Failed to seed prng\n");
+    goto done;
+  }
+  
+  if (psa_crypto_init())
+  {
+    DEBUG_puts("Failed to init PSA crypto\n");
+    goto done;
+  }
+
+  mbedtls_pk_context pkey;		// Private key
+  mbedtls_pk_init(&pkey);
+
+  if (mbedtls_pk_parse_key(&pkey, key, strlen(key) + 1, NULL, 0, mbedtls_ctr_drbg_random, &ctr_drbg))
+  {
+    DEBUG_puts("Failed to parse private key\n");
+    goto done;
+  }
+
+  switch (mbedtls_pk_get_type(&pkey))
+  {
+    case MBEDTLS_PK_RSA:
+    case MBEDTLS_PK_RSA_ALT:
+        mbedtls_rsa_context *rsa = mbedtls_pk_rsa(pkey);
+        if (!rsa)
+        {
+          mbedtls_pk_free(&pkey);
+          mbedtls_psa_crypto_free();
+          goto done;
+        }
+        if (mbedtls_mpi_write_base64(&rsa->N, n, sizeof(n)) || mbedtls_mpi_write_base64(&rsa->E, e, sizeof(e)) || mbedtls_mpi_write_base64(&rsa->D, d, sizeof(d)) || mbedtls_mpi_write_base64(&rsa->P, p, sizeof(p)) || mbedtls_mpi_write_base64(&rsa->Q, q, sizeof(q)) || mbedtls_mpi_write_base64(&rsa->QP, qi, sizeof(qi)) || mbedtls_mpi_write_base64(&rsa->DP, dp, sizeof(dp)) || mbedtls_mpi_write_base64(&rsa->DQ, dq, sizeof(dq)))
+        {
+          DEBUG_puts("Failed to write an RSA value\n");
+          mbedtls_pk_free(&pkey);
+          mbedtls_psa_crypto_free();
+          goto done;
+        }
+        break;
+    case MBEDTLS_PK_ECDSA:
+    case MBEDTLS_PK_ECKEY:
+    case MBEDTLS_PK_ECKEY_DH:
+        mbedtls_ecp_keypair *ecp = mbedtls_pk_ec(pkey);
+        if (!ecp)
+        {
+          mbedtls_pk_free(&pkey);
+          mbedtls_psa_crypto_free();
+          goto done;
+        }
+        switch (ecp->grp.id)
+        {
+          case MBEDTLS_ECP_DP_SECP256R1:
+              crv = "P-256";
+              break;
+          case MBEDTLS_ECP_DP_SECP384R1:
+              crv = "P-384";
+              break;
+          case MBEDTLS_ECP_DP_SECP521R1:
+              crv = "P-521";
+              break;
+          default:
+              crv = "UNK";
+              break;
+        }
+        
+        if (mbedtls_mpi_write_base64(&ecp->Q.X, x, sizeof(x)) || mbedtls_mpi_write_base64(&ecp->Q.Y, y, sizeof(y)) || mbedtls_mpi_write_base64(&ecp->d, d, sizeof(d)))
+        {
+          DEBUG_puts("Failed to write an ECP value\n");
+          mbedtls_pk_free(&pkey);
+          mbedtls_psa_crypto_free();
+          goto done;
+        }
+        break;
+    default:
+        mbedtls_pk_free(&pkey);
+        mbedtls_psa_crypto_free();
+        goto done;
+  }
+  mbedtls_pk_free(&pkey);
+  mbedtls_psa_crypto_free();
 #endif // HAVE_OPENSSL
 
   // Create JWK
@@ -1008,8 +1153,32 @@ cupsJWTMakePrivateKey(cups_jwa_t alg)	// I - Signing/encryption algorithm
     key_len = alg == CUPS_JWA_HS256 ? 64 : 128;
 #ifdef HAVE_OPENSSL
     RAND_bytes(key, key_len);
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
     gnutls_rnd(GNUTLS_RND_KEY, key, key_len);
+#else // HAVE_MBEDTLS
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_entropy_context entropy;
+    mbedtls_entropy_init(&entropy);
+    mbedtls_ctr_drbg_init(&ctr_drbg);
+    if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0))
+    {
+      DEBUG_puts("Failed to seed prng\n");
+      return NULL;
+    }
+    
+    if (psa_crypto_init())
+    {
+      DEBUG_puts("Failed to init PSA crypto\n");
+      return NULL;
+    }
+
+    if (psa_generate_random(key, key_len))
+    {
+      DEBUG_puts("Failed to generate random bits for key\n");
+      mbedtls_psa_crypto_free();
+      return NULL;
+    }
+    mbedtls_psa_crypto_free();
 #endif // HAVE_OPENSSL
 
     httpEncode64(key_base64, sizeof(key_base64), (char *)key, key_len, true);
@@ -1043,7 +1212,7 @@ cupsJWTMakePrivateKey(cups_jwa_t alg)	// I - Signing/encryption algorithm
 
     RSA_free(rsa);
 
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
     gnutls_privkey_t	key;		// Private key
     gnutls_datum_t	dat_n, dat_e, dat_d, dat_p, dat_q, dat_dp, dat_dq, dat_qi;
 					// RSA parameters
@@ -1060,6 +1229,42 @@ cupsJWTMakePrivateKey(cups_jwa_t alg)	// I - Signing/encryption algorithm
     make_datstring(&dat_dp, dp, sizeof(dp));
     make_datstring(&dat_dq, dq, sizeof(dq));
     gnutls_privkey_deinit(key);
+#else // HAVE_MBEDTLS
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_entropy_context entropy;
+    mbedtls_entropy_init(&entropy);
+    mbedtls_ctr_drbg_init(&ctr_drbg);
+    if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0))
+    {
+      DEBUG_puts("Failed to seed prng\n");
+      return NULL;
+    }
+    
+    if (psa_crypto_init())
+    {
+      DEBUG_puts("Failed to init PSA crypto\n");
+      return NULL;
+    }
+
+    mbedtls_rsa_context rsa;
+    mbedtls_rsa_init(&rsa);
+    if (mbedtls_rsa_gen_key(&rsa, mbedtls_ctr_drbg_random, &ctr_drbg, 3072, 0x10001))
+    {
+      DEBUG_puts("Failed to generate random RSA key\n");
+      mbedtls_rsa_free(&rsa);
+      mbedtls_psa_crypto_free();
+      return NULL;
+    }
+
+    if (mbedtls_mpi_write_base64(&rsa.N, n, sizeof(n)) || mbedtls_mpi_write_base64(&rsa.E, e, sizeof(e)) || mbedtls_mpi_write_base64(&rsa.D, d, sizeof(d)) || mbedtls_mpi_write_base64(&rsa.P, p, sizeof(p)) || mbedtls_mpi_write_base64(&rsa.Q, q, sizeof(q)) || mbedtls_mpi_write_base64(&rsa.QP, qi, sizeof(qi)) || mbedtls_mpi_write_base64(&rsa.DP, dp, sizeof(dp)) || mbedtls_mpi_write_base64(&rsa.DQ, dq, sizeof(dq)))
+    {
+      DEBUG_puts("Failed to write an RSA value\n");
+      mbedtls_rsa_free(&rsa);
+      mbedtls_psa_crypto_free();
+      return NULL;
+    }
+    mbedtls_rsa_free(&rsa);
+    mbedtls_psa_crypto_free();
 #endif // HAVE_OPENSSL
 
     node = cupsJSONNewString(jwk, node, kty = "RSA");
@@ -1123,7 +1328,7 @@ cupsJWTMakePrivateKey(cups_jwa_t alg)	// I - Signing/encryption algorithm
 
     EC_KEY_free(ec);
 
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
     gnutls_privkey_t	key;		// Private key
     gnutls_ecc_curve_t	dat_curve;	// Curve
     gnutls_datum_t	dat_x, dat_y, dat_d;
@@ -1136,6 +1341,46 @@ cupsJWTMakePrivateKey(cups_jwa_t alg)	// I - Signing/encryption algorithm
     make_datstring(&dat_y, y, sizeof(y));
     make_datstring(&dat_d, d, sizeof(d));
     gnutls_privkey_deinit(key);
+#else // HAVE_MBEDTLS
+    mbedtls_ctr_drbg_context ctr_drbg;
+    mbedtls_entropy_context entropy;
+    mbedtls_entropy_init(&entropy);
+    mbedtls_ctr_drbg_init(&ctr_drbg);
+    if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0))
+    {
+      DEBUG_puts("Failed to seed prng\n");
+      return NULL;
+    }
+    
+    if (psa_crypto_init())
+    {
+      DEBUG_puts("Failed to init PSA crypto\n");
+      return NULL;
+    }
+
+    mbedtls_ecp_keypair ecp;
+    mbedtls_ecp_keypair_init(&ecp);
+    int ec_ret;
+    if (alg == CUPS_JWA_ES256)
+      ec_ret = mbedtls_ecp_gen_key(MBEDTLS_ECP_DP_SECP256R1, &ecp, mbedtls_ctr_drbg_random, &ctr_drbg);
+    else if (alg == CUPS_JWA_ES384)
+      ec_ret = mbedtls_ecp_gen_key(MBEDTLS_ECP_DP_SECP384R1, &ecp, mbedtls_ctr_drbg_random, &ctr_drbg);
+    else
+      ec_ret = mbedtls_ecp_gen_key(MBEDTLS_ECP_DP_SECP521R1, &ecp, mbedtls_ctr_drbg_random, &ctr_drbg);
+    if (ec_ret)
+    {
+      DEBUG_puts("Failed to generate random ecp key\n");
+      mbedtls_ecp_keypair_free(&ecp);
+      mbedtls_psa_crypto_free();
+      return NULL;
+    }
+    if (mbedtls_mpi_write_base64(&ecp.Q.X, x, sizeof(x)) || mbedtls_mpi_write_base64(&ecp.Q.Y, y, sizeof(y)) || mbedtls_mpi_write_base64(&ecp.d, d, sizeof(d)))
+    {
+      DEBUG_puts("Failed to write an ECP value\n");
+      mbedtls_ecp_keypair_free(&ecp);
+      mbedtls_psa_crypto_free();
+      return NULL;
+    }
 #endif // HAVE_OPENSSL
 
     node = cupsJSONNewString(jwk, node, kty = "EC");
@@ -1751,7 +1996,7 @@ make_rsa(cups_json_t *jwk)		// I - JSON web key
 }
 
 
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
 //
 // 'make_datum()' - Make a datum value for a parameter.
 //
@@ -1990,8 +2235,246 @@ make_public_key(cups_json_t *jwk)	// I - JSON web key
 
   return (key);
 }
-#endif // HAVE_OPENSSL
 
+
+#else // HAVE_MBEDTLS
+//
+// 'mbedtls_rsa_import_jwk' - Import an RSA context from a JWK. The RSA context should be pre-initialized.
+//
+
+int mbedtls_rsa_import_jwk(mbedtls_rsa_context *rsa_ctx, cups_json_t *jwk, bool verify)
+{
+  int ret = -1;		// Return value
+  mbedtls_mpi	n,	// Public key modulus
+		          e,	// Public key exponent
+		          d,	// Private key exponent
+		          p,	// Private key first prime factor
+		          q;	// Private key second prime factor
+  char error_str[256];
+  *error_str = '\0';
+
+  if ((ret = mbedtls_mpi_read_base64(&n, jwk, "n")) != 0)
+  {
+    DEBUG_puts("Failed to parse n\n");
+    goto rsa_done;
+  }
+  if ((ret = mbedtls_mpi_read_base64(&e, jwk, "e")) != 0)
+  {
+    DEBUG_puts("Failed to parse e\n");
+    goto rsa_done;
+  }
+  if ((ret = mbedtls_mpi_read_base64(&d, jwk, "d")) != 0 && ret != FAILED_TO_PARSE_JSON_VALUE && !verify)
+  {
+    DEBUG_puts("Failed to parse d\n");
+    goto rsa_done;
+  }
+  if ((ret = mbedtls_mpi_read_base64(&p, jwk, "p")) != 0 && ret != FAILED_TO_PARSE_JSON_VALUE && !verify)
+  {
+    DEBUG_puts("Failed to parse p\n");
+    goto rsa_done;
+  }
+  if ((ret = mbedtls_mpi_read_base64(&q, jwk, "q")) != 0 && ret != FAILED_TO_PARSE_JSON_VALUE && !verify)
+  {
+    DEBUG_puts("Failed to parse q\n");
+    goto rsa_done;
+  }
+
+  ret = mbedtls_rsa_import(rsa_ctx, &n, verify ? NULL : &p, verify ? NULL : &q, verify ? NULL : &d, &e);
+  if (ret)
+  {
+    mbedtls_strerror(ret, error_str, sizeof(error_str));
+    DEBUG_printf("Failed to import raw RSA key: %s\n", error_str);
+    goto rsa_done;
+  }
+
+  ret = mbedtls_rsa_complete(rsa_ctx);
+  if (ret)
+  {
+    mbedtls_strerror(ret, error_str, sizeof(error_str));
+    DEBUG_printf("Failed to complete RSA key: %s\n", error_str);
+    goto rsa_done;
+  }
+
+  rsa_done:
+  mbedtls_mpi_free(&n);
+  mbedtls_mpi_free(&e);
+  mbedtls_mpi_free(&d);
+  mbedtls_mpi_free(&p);
+  mbedtls_mpi_free(&q);
+
+  return ret;
+}
+
+
+//
+// 'mbedtls_ecdsa_import_jwk' - Import an ECDSA context from a JWK. The context should be pre-initialized.
+//
+
+int mbedtls_ecdsa_import_jwk(mbedtls_ecdsa_context *ecdsa_ctx, cups_json_t *jwk, bool verify)
+{
+  int ret = -1;		// Return value
+  unsigned char	*crv; // Curve
+  mbedtls_mpi x, // x coordinate
+              y; // y coordinate
+  char error_str[256];
+  *error_str = '\0';
+  mbedtls_ecp_group_id curve = MBEDTLS_ECP_DP_NONE;
+
+  mbedtls_mpi_init(&x);
+  mbedtls_mpi_init(&y);
+
+  crv  = cupsJSONGetString(cupsJSONFind(jwk, "crv"));
+  if (!crv)
+    return ret;
+  else if (!strcmp(crv, "P-256"))
+    curve = MBEDTLS_ECP_DP_SECP256R1;
+  else if (!strcmp(crv, "P-384"))
+    curve = MBEDTLS_ECP_DP_SECP384R1;
+  else if (!strcmp(crv, "P-521"))
+    curve = MBEDTLS_ECP_DP_SECP384R1;
+  else
+    return ret;
+
+  ret = mbedtls_ecp_group_load(&ecdsa_ctx->grp, curve);
+  if (ret)
+  {
+    mbedtls_strerror(ret, error_str, sizeof(error_str));
+    DEBUG_printf("Failed to load ECP group: %s\n", error_str);
+    goto ecdsa_done;
+  }
+
+  ret  = mbedtls_mpi_read_base64(&x, jwk, "x");
+  if (ret || ((ret = mbedtls_mpi_read_base64(&y, jwk, "y")) != 0))
+  {
+    DEBUG_puts("Failed to load x and y coords\n");
+    goto ecdsa_done;
+  }
+
+  unsigned char buf[1 + 2*((ecdsa_ctx->grp.pbits + 7u) / 8u)];
+  buf[0] = 0x04;
+
+  if (!mbedtls_mpi_write_binary(&x, buf + 1, ((ecdsa_ctx->grp.pbits + 7u) / 8u)))
+  {
+    if (mbedtls_mpi_write_binary(&y, buf + 1 + ((ecdsa_ctx->grp.pbits + 7u) / 8u), ((ecdsa_ctx->grp.pbits + 7u) / 8u)))
+    {
+      DEBUG_PUTS("Failed to copy y coord\n");
+      goto ecdsa_done;
+    }
+  }
+  else
+  {
+    DEBUG_PUTS("Failed to copy x coord\n");
+    goto ecdsa_done;
+  }
+
+  ret = mbedtls_ecp_point_read_binary(grp, &ecdsa_ctx->Q, buf, sizeof(buf));
+  if (ret)
+  {
+    mbedtls_strerror(ret, error_str, sizeof(error_str));
+    DEBUG_printf("Failed to read binary ECP point: %s\n", error_str);
+    goto ecdsa_done;
+  }
+  ret = mbedtls_ecp_check_pubkey(&ecdsa_ctx->grp, &ecdsa_ctx->Q);
+  if (ret)
+  {
+    mbedtls_strerror(ret, error_str, sizeof(error_str));
+    DEBUG_printf("Q failed pubkey check: %s\n", error_str);
+    goto ecdsa_done;
+  }
+
+  if (!verify)
+  {
+    ret = mbedtls_mpi_read_base64(d, jwk, "d");
+    if (ret)
+    {
+      DEBUG_puts("Failed to read d private key\n");
+      goto ecdsa_done;
+    }
+    ret = mbedtls_ecp_check_privkey(&ecdsa_ctx->grp, &ecdsa_ctx->d);
+    if (ret)
+    {
+      mbedtls_strerror(ret, error_str, sizeof(error_str));
+      DEBUG_printf("d failed privkey check: %s\n", error_str);
+      goto ecdsa_done;
+    }
+  }
+  
+  ecdsa_done:
+  mbedtls_mpi_free(&x);
+  mbedtls_mpi_free(&y);
+  return ret;
+}
+
+
+//
+// 'mbedtls_mpi_read_base64' - Initialize and read a base64 encoded string from a JWK into an MPI.
+//
+
+int mbedtls_mpi_read_base64(mbedtls_mpi *mpi, cups_json_t *jwk, const char *key)
+{
+  int ret = FAILED_TO_PARSE_JSON_VALUE;
+  unsigned char buf[1024];
+  *buf = '\0';
+  char  *value,
+        *value_end;
+
+  if ((value = cupsJSONGetString(cupsJSONFind(jwk, key))) == NULL)
+  {
+    DEBUG_puts("Failed to parse value");
+    return ret;
+  }
+
+  ret = -1;
+  // Decode and validate...
+  size_t buf_len = sizeof(buf);
+
+  if (!httpDecode64((char *)buf, &buf_len, value, &value_end) || (value_end && *value_end))
+  {
+    DEBUG_puts("Failed to decode value\n");
+    return ret;
+  }
+
+  mbedtls_mpi_init(mpi);
+
+  ret = mbedtls_mpi_read_binary(mpi, buf, buf_len);
+  if (ret)
+  {
+    char error_str[256];
+    *error_str = '\0';
+    mbedtls_strerror(ret, error_str, sizeof(error_str));
+    DEBUG_printf("Failed to read binary into mpi: %s", error_str);
+  }
+  return ret;
+}
+
+
+//
+// 'mbedtls_mpi_write_base64' - Write binary from an MPI and base64 encode it into a buffer.
+//
+
+int mbedtls_mpi_write_base64(mbedtls_mpi *mpi, char *buffer, size_t bufsize)
+{
+  int ret = -1;
+  unsigned char binary_buf[1024];
+  unsigned char *start = binary_buf;
+  if ((ret = mbedtls_mpi_write_binary(mpi, binary_buf, sizeof(binary_buf))) != 0)
+  {
+    char error_str[256];
+    mbedtls_strerror(ret, error_str, sizeof(error_str));
+    DEBUG_printf("Failed to write binary from mpi: %s\n");
+    return ret;
+  }
+  while (*start == 0)
+  {
+    start++;
+  }
+  size_t binary_len = sizeof(binary_buf) - (start - binary_buf);
+  httpEncode64(buffer, bufsize, start, binary_len, true);
+  ret = 0;
+  
+  return ret;
+}
+#endif // HAVE_OPENSSL
 
 //
 // 'make_signature()' - Make a signature.
@@ -2012,12 +2495,31 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
 #ifdef HAVE_OPENSSL
   static int		nids[] = { NID_sha256, NID_sha384, NID_sha512 };
 					// Hash NIDs
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
   gnutls_privkey_t	key;		// Private key
   gnutls_datum_t	text_datum,	// Text datum
 			sig_datum;	// Signature datum
   static int algs[] = { GNUTLS_DIG_SHA256, GNUTLS_DIG_SHA384, GNUTLS_DIG_SHA512, GNUTLS_DIG_SHA256, GNUTLS_DIG_SHA384, GNUTLS_DIG_SHA512 };
 					// Hash algorithms
+#else // HAVE_MBEDTLS
+  mbedtls_ctr_drbg_context ctr_drbg;
+  mbedtls_entropy_context entropy;
+  mbedtls_entropy_init(&entropy);
+  mbedtls_ctr_drbg_init(&ctr_drbg);
+  if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0))
+  {
+    DEBUG_puts("Failed to seed prng\n");
+    return false;
+  }
+  
+  if (psa_crypto_init())
+  {
+    DEBUG_puts("Failed to init PSA crypto\n");
+    return false;
+  }
+
+  static mbedtls_md_type_t algs[] = { MBEDTLS_MD_SHA256, MBEDTLS_MD_SHA384, MBEDTLS_MD_SHA512 };
+          // Message digest algorithms
 #endif // HAVE_OPENSSL
 
 
@@ -2076,7 +2578,7 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
 
       RSA_free(rsa);
     }
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
     if ((key = make_private_key(jwk)) != NULL)
     {
       text_datum.data = (unsigned char *)text;
@@ -2093,6 +2595,27 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
 
       gnutls_free(sig_datum.data);
       gnutls_privkey_deinit(key);
+    }
+#else // HAVE_MBEDTLS
+    unsigned char hash[128];		// SHA-256/384/512 hash
+    size_t	hash_len;		// Length of hash
+    unsigned	siglen = (unsigned)*sigsize;
+					// Length of signature
+    mbedtls_rsa_context rsa;			// RSA public/private key
+    mbedtls_rsa_init(&rsa);
+
+    if (!mbedtls_rsa_import_jwk(&rsa, jwk, false))
+    {
+      hash_len = cupsHashData(cups_jwa_algorithms[alg], text, text_len, hash, sizeof(hash));
+      assert(hash_len > 0);
+
+      if (!mbedtls_rsa_rsassa_pkcs1_v15_sign(&rsa, mbedtls_ctr_drbg_random, &ctr_drbg, algs[alg - CUPS_JWA_RS256], hash_len, hash, signature))
+      {
+        *sigsize = rsa.len;
+        ret      = true;
+      }
+      mbedtls_rsa_free(&rsa);
+      mbedtls_psa_crypto_free();
     }
 #endif // HAVE_OPENSSL
   }
@@ -2138,7 +2661,7 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
 
       EC_KEY_free(ec);
     }
-#else // HAVE_GNUTLS
+#elif defined(HAVE_GNUTLS)
     if ((key = make_private_key(jwk)) != NULL)
     {
       text_datum.data = (unsigned char *)text;
@@ -2175,6 +2698,36 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
       gnutls_free(sig_datum.data);
       gnutls_privkey_deinit(key);
     }
+#else // HAVE_MBEDTLS
+    unsigned char hash[128];		// SHA-256/384/512 hash
+    ssize_t	hash_len;		// Length of hash
+    unsigned	siglen = (unsigned)*sigsize;
+					// Length of signature
+    mbedtls_ecdsa_context ecp;			// ECDSA public/private key
+    mbedtls_ecdsa_init(&ecp);
+    mbedtls_mpi R, S;
+    mbedtls_mpi_init(&R);
+    mbedtls_mpi_init(&S);
+
+    if (!mbedtls_ecdsa_import_jwk(&ecp, jwk, false))
+    {
+      hash_len = cupsHashData(cups_jwa_algorithms[alg], text, text_len, hash, sizeof(hash));
+      assert(hash_len > 0);
+
+      if (!mbedtls_ecdsa_sign(&ecp.grp, &R, &S, &ecp.d, hash, hash_len, mbedtls_ctr_drbg_random, &ctr_drbg))
+      {
+        *sigsize = sig_sizes[alg - CUPS_JWA_ES256];
+        sig_len  = *sigsize / 2;
+
+        memset(signature, 0, *sigsize);
+        if (!mbedtls_mpi_write_binary(&R, signature, sig_len) && !mbedtls_mpi_write_binary(&S, signature + sig_len, sig_len))
+          ret = true;
+      }
+    }
+    mbedtls_mpi_free(&R);
+    mbedtls_mpi_free(&S);
+    mbedtls_ecdsa_free(&ecp);
+    mbedtls_psa_crypto_free();
 #endif // HAVE_OPENSSL
   }
 
