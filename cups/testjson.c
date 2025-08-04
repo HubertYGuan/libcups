@@ -13,15 +13,16 @@
 
 
 //
-// 'main()' - Main entry.
+// 'testjson_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testjson_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		i;			// Looping var
   cups_json_t	*json;			// JSON root object
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testjson", NULL}; // Command-line arguments
 
 
   if (argc == 1)
@@ -250,7 +251,7 @@ main(int  argc,				// I - Number of command-line arguments
     }
 
     if (!testsPassed)
-      return (1);
+      return;
   }
   else
   {
@@ -273,6 +274,4 @@ main(int  argc,				// I - Number of command-line arguments
       cupsJSONDelete(json);
     }
   }
-
-  return (0);
 }

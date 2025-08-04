@@ -14,28 +14,21 @@
 #include <mbedtls/x509_crt.h>
 #include <mbedtls/x509_csr.h>
 #include <mbedtls/x509_crl.h>
-#include <mbedtls/x509_crt_private.h>
+#include <mbedtls/pk.h>
+#include <mbedtls/error.h>
 #include <psa/crypto.h>
+#include <psa/crypto_values.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/pem.h>
 #include <mbedtls/oid.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/asn1write.h>
 #include <string.h>
 #include <time.h>
 
 #define MAX_CREDS_STR_LEN 32767
 #define MAX_DN_STR_LEN 1023
-
-//
-// Define OIDs
-//
-
-#define MBEDTLS_OID_X520_COUNTRY_NAME "2.5.4.6"
-#define MBEDTLS_OID_X520_ORGANIZATION_NAME "2.5.4.10"
-#define MBEDTLS_OID_X520_ORGANIZATIONAL_UNIT_NAME "2.5.4.11"
-#define MBEDTLS_OID_X520_COMMON_NAME "2.5.4.3"
-#define MBEDTLS_OID_X520_LOCALITY_NAME "2.5.4.7"
-#define MBEDTLS_OID_X520_STATE_OR_PROVINCE_NAME "2.5.4.8"
-#define MBEDTLS_OID_PKCS9_EMAIL "1.2.840.113549.1.9.1"
 
 #define SET_OID(x, oid) \
   do { x.len = MBEDTLS_OID_SIZE(oid); x.p = (unsigned char *) oid; } while (0)
@@ -47,7 +40,7 @@
 // Local globals...
 //
 
-static mbedtls_x509_crl tls_crl = {0};// Certificate revocation list
+static mbedtls_x509_crl tls_crl = {0};  // Certificate revocation list
 
 static psa_status_t mbedtls_create_key(psa_key_attributes_t *attributes, psa_key_id_t *key, cups_credtype_t type);
 static int mbedtls_x509write_csr_set_ext_key_usage(mbedtls_x509write_csr *req, const mbedtls_asn1_sequence *exts);
@@ -57,8 +50,8 @@ static void time_to_str(time_t *raw, char *buf, size_t buf_size)
   struct tm *raw_tm = localtime(raw);
   strftime(buf, buf_size, "%Y%m%d%H%M%S", raw_tm);
 }
-static int mbedtls_http_read(void *ctx, unsigned char *buf, size_t len);
-static int mbedtls_http_write(void *ctx, unsigned char *buf, size_t len);
+static int mbedtls_http_read(void *ctx, unsigned char *data, size_t length);
+static int mbedtls_http_write(void *ctx, const unsigned char *data, size_t length);
 static void mbedtls_load_crl(void);
 
 //
@@ -91,15 +84,15 @@ cupsAreCredentialsValidForName(
     goto exit;
   }
 
-  mbedtls_x509_crt_verify_name(&chain, common_name, &flags);
+  x509_crt_verify_name(&chain, common_name, &flags);
   if (flags)
   {
     result = false;
-    DEBUG_printf("mbedtls_x509_crt_verify_name exited with flags: %u", flags);
+    DEBUG_printf("x509_crt_verify_name exited with flags: %u", flags);
     goto exit;
   }
 
-  if (tls_crl == NULL)
+  if (tls_crl.raw.p == NULL)
   {
     result = true;
     goto exit;
@@ -214,7 +207,7 @@ cupsCreateCredentials(
   mbedtls_x509write_cert ctx = {0};  // New context for certificate
   mbedtls_pk_context pkctx = {0};  // pk context for new key
   bool pkctx_is_init = false;  // If pkctx has been initiated
-  mbedtls_x509_san_list *san_list_head, *san_list_cur = NULL; // Subject alt name list structs
+  mbedtls_x509_san_list *san_list_head = NULL, *san_list_cur = NULL; // Subject alt name list structs
   mbedtls_asn1_sequence *ext_key_usage_head = NULL;  // List of extended key usage items
   mbedtls_entropy_context entropy;  // Entropy and ctr drbg contexts are needed for pseudo-rng
   mbedtls_ctr_drbg_context ctr_drbg;  // These will be deprecated in Mbed TLS 4.0.0
@@ -234,10 +227,11 @@ cupsCreateCredentials(
   size_t		bytes;		// Number of bytes of data
   unsigned char		serial[8];	// Serial number buffer
   time_t		curtime;	// Current time
-  int			err;		// Result of mbedtls calls (int is same as psa_status_t)
+  int			err = 0;		// Result of mbedtls and PSA calls (int is same as psa_status_t)
   char error_str[256];  // Error code mbedtls_strerror
   *error_str = '\0';
-
+  char curtime_str[strlen("YYYYMMDDhhmmss")+1];
+  char expiration_str[strlen("YYYYMMDDhhmmss")+1];
 
   DEBUG_printf("cupsCreateCredentials(path=\"%s\", ca_cert=%s, purpose=0x%x, type=%d, usage=0x%x, organization=\"%s\", org_unit=\"%s\", locality=\"%s\", state_province=\"%s\", country=\"%s\", common_name=\"%s\", num_alt_names=%u, alt_names=%p, root_name=\"%s\", expiration_date=%ld)", path, ca_cert ? "true" : "false", purpose, type, usage, organization, org_unit, locality, state_province, country, common_name, (unsigned)num_alt_names, alt_names, root_name, (long)expiration_date);
 
@@ -265,7 +259,7 @@ cupsCreateCredentials(
   // Seed the PRNG
   mbedtls_ctr_drbg_init(&ctr_drbg);
   mbedtls_entropy_init(&entropy);
-  err = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0)
+  err = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
   if (err)
   {
     DEBUG_puts("Failed to seed PRNG\n");
@@ -347,12 +341,12 @@ cupsCreateCredentials(
   // Set dn
   char dn[MAX_DN_STR_LEN + 1];
   err = snprintf(dn, sizeof(dn), "%s=%s,%s=%s,%s=%s,%s=%s,%s=%s,%s=%s",
-           MBEDTLS_OID_X520_COUNTRY_NAME, country,
-           MBEDTLS_OID_X520_ORGANIZATION_NAME, organization,
-           MBEDTLS_OID_X520_ORGANIZATIONAL_UNIT_NAME, org_unit,
-           MBEDTLS_OID_X520_COMMON_NAME, common_name,
-           MBEDTLS_OID_X520_LOCALITY_NAME, locality,
-           MBEDTLS_OID_X520_STATE_OR_PROVINCE_NAME, state_province);
+           MBEDTLS_OID_AT_COUNTRY, country,
+           MBEDTLS_OID_AT_ORGANIZATION, organization,
+           MBEDTLS_OID_AT_ORG_UNIT, org_unit,
+           MBEDTLS_OID_AT_CN, common_name,
+           MBEDTLS_OID_AT_LOCALITY, locality,
+           MBEDTLS_OID_AT_STATE, state_province);
 
   if (err > MAX_DN_STR_LEN)
   {
@@ -386,9 +380,7 @@ cupsCreateCredentials(
     goto done;
   }
 
-  char curtime_str[strlen("YYYYMMDDhhmmss")+1];
   time_to_str(&curtime, curtime_str, sizeof(curtime_str));
-  char expiration_str[strlen("YYYYMMDDhhmmss")+1];
   time_to_str(&expiration_date, expiration_str, sizeof(expiration_str));
 
   err = mbedtls_x509write_crt_set_validity(&ctx, curtime_str, expiration_str);
@@ -406,7 +398,7 @@ cupsCreateCredentials(
     goto done;
   }
 
-  san_list_head = mbedtls_calloc(1, sizeof(mbedtls_x509_san_list));
+  san_list_head = calloc(1, sizeof(mbedtls_x509_san_list));
   if (!san_list_head)
   {
     DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -423,14 +415,14 @@ cupsCreateCredentials(
   if (!strchr(common_name, '.'))
   {
     // Add common_name.local to the list, too...
-    localname = (char *)mbedtls_malloc(256);  // hostname.local
+    localname = (char *)malloc(256);  // hostname.local
     if (!localname)
     {
       DEBUG_puts("Failed to allocate memory for subject alt name localname\n");
       goto done;
     }
     snprintf(localname, 256, "%s.local", common_name);
-    san_list_cur->next = mbedtls_calloc(1, sizeof(mbedtls_x509_san_list));
+    san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
     if (!san_list_cur->next)
     {
       DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -452,7 +444,7 @@ cupsCreateCredentials(
     {
       if (strcmp(alt_names[i], "localhost"))
       {
-        san_list_cur->next = mbedtls_calloc(1, sizeof(mbedtls_x509_san_list));
+        san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
         if (!san_list_cur->next)
         {
           DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -468,14 +460,14 @@ cupsCreateCredentials(
     }
   }
 
-  err = mbedtls_x509write_crt_set_subject_alternative_name(&ctx, &san_list_head);
+  err = mbedtls_x509write_crt_set_subject_alternative_name(&ctx, san_list_head);
   if (err)
   {
     DEBUG_puts("Failed to set subject alt name\n");
     goto done;
   }
 
-  ext_key_usage_head = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+  ext_key_usage_head = calloc(1, sizeof(mbedtls_asn1_sequence));
   if (!ext_key_usage_head)
   {
     DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -487,8 +479,8 @@ cupsCreateCredentials(
 
   if (purpose & CUPS_CREDPURPOSE_SERVER_AUTH)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_SERVER_AUTH);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_SERVER_AUTH);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -500,8 +492,8 @@ cupsCreateCredentials(
   }
   if (purpose & CUPS_CREDPURPOSE_CLIENT_AUTH)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_CLIENT_AUTH);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CLIENT_AUTH);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -513,8 +505,8 @@ cupsCreateCredentials(
   }
   if (purpose & CUPS_CREDPURPOSE_CODE_SIGNING)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_CODE_SIGNING);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CODE_SIGNING);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -526,8 +518,8 @@ cupsCreateCredentials(
   }
   if (purpose & CUPS_CREDPURPOSE_EMAIL_PROTECTION)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_EMAIL_PROTECTION);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_EMAIL_PROTECTION);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -540,8 +532,8 @@ cupsCreateCredentials(
   // TIME_STAMPING was originally not included
   if (purpose & CUPS_CREDPURPOSE_OCSP_SIGNING)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_OCSP_SIGNING);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_OCSP_SIGNING);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -584,12 +576,7 @@ cupsCreateCredentials(
     DEBUG_puts("Failed to set key usage\n");
     goto done;
   }
-  err = mbedtls_x509write_crt_set_version(&ctx, MBEDTLS_X509_CRT_VERSION_3);
-  if (err)
-  {
-    DEBUG_puts("Failed to set version\n");
-    goto done;
-  }
+  mbedtls_x509write_crt_set_version(&ctx, MBEDTLS_X509_CRT_VERSION_3);
 
   err = mbedtls_x509write_crt_set_subject_key_identifier(&ctx);
   if (err)
@@ -598,12 +585,7 @@ cupsCreateCredentials(
     goto done;
   }
 
-  err = mbedtls_x509write_crt_set_md_alg(&ctx, MBEDTLS_MD_SHA256);
-  if (err)
-  {
-    DEBUG_puts("Failed to set message digest algorithm\n");
-    goto done;
-  }
+  mbedtls_x509write_crt_set_md_alg(&ctx, MBEDTLS_MD_SHA256);
 
   // Try loading a root certificate...
   if (!ca_cert)
@@ -642,7 +624,7 @@ cupsCreateCredentials(
     free(root_keydata);
   }
 
-  if (root_crt.serial.p && root_key_ctx.priv_id != 0)
+  if (root_crt.serial.p && root_key_ctx.private_priv_id != 0)
   {
     // Set issuer key and name
     char issuer_name[256];
@@ -665,14 +647,7 @@ cupsCreateCredentials(
     }
 
     // No check for if the issuer key and key of issuer cert match
-    err = mbedtls_x509write_crt_set_issuer_key(&ctx, &root_key_ctx);
-    if (err)
-    {
-      DEBUG_puts("Failed to set issuer name\n");
-      mbedtls_x509_crt_free(&root_crt);
-      mbedtls_pk_free(&root_key_ctx);
-      goto done;
-    }
+    mbedtls_x509write_crt_set_issuer_key(&ctx, &root_key_ctx);
   }
   else
   {
@@ -684,12 +659,7 @@ cupsCreateCredentials(
       goto done;
     }
 
-    err = mbedtls_x509write_crt_set_issuer_key(&ctx, &pkctx);
-    if (err)
-    {
-      DEBUG_puts("Failed to set self-signed issuer key\n");
-      goto done;
-    }
+    mbedtls_x509write_crt_set_issuer_key(&ctx, &pkctx);
   }
 
   err = mbedtls_x509write_crt_set_authority_key_identifier(&ctx);
@@ -702,7 +672,7 @@ cupsCreateCredentials(
   // Save it... (Using PEM format)
   bytes = 0;
   err = mbedtls_x509write_crt_pem(&ctx, buffer, sizeof(buffer), mbedtls_ctr_drbg_random, &ctr_drbg);
-  bytes = strlen((charr *)buffer);
+  bytes = strlen((char *)buffer);
   if (err)
   {
     mbedtls_strerror(err, error_str, sizeof(error_str));
@@ -759,7 +729,7 @@ cupsCreateCredentials(
   if (pkctx_is_init)
     mbedtls_pk_free(&pkctx);
   if (localname)
-    mbedtls_free(localname);
+    free(localname);
   if (san_list_head)
   {
     san_list_cur = san_list_head;
@@ -770,13 +740,13 @@ cupsCreateCredentials(
         * It's the right thing for entries that were parsed from a certificate,
         * where pointers are to the raw certificate, but here all the
         * pointers were allocated while parsing from a user-provided string. */
-      if (cur->node.type == MBEDTLS_X509_SAN_DIRECTORY_NAME) {
-        mbedtls_x509_name *dn = &cur->node.san.directory_name;
-        mbedtls_free(dn->oid.p);
-        mbedtls_free(dn->val.p);
+      if (san_list_cur->node.type == MBEDTLS_X509_SAN_DIRECTORY_NAME) {
+        mbedtls_x509_name *dn = &san_list_cur->node.san.directory_name;
+        free(dn->oid.p);
+        free(dn->val.p);
         mbedtls_asn1_free_named_data_list(&dn->next);
       }
-      mbedtls_free(cur);
+      free(san_list_cur);
       san_list_cur = next;
     }
   }
@@ -867,10 +837,11 @@ cupsCreateCredentialsRequest(
   bool			ret = false;	// Return value
   mbedtls_x509write_csr req = {0};	// Certificate request
   psa_key_id_t key = 0;	 // Private/public key pair
-  psa_key_attributes  key_atts = {0};  // Key attributes
+  psa_key_attributes_t  key_atts = {0};  // Key attributes
   mbedtls_pk_context pkctx = {0}; // PK context for key
-  mbedtls_x509_san_list *san_list_head, *san_list_cur = NULL; // Subject alt name list structs
+  mbedtls_x509_san_list *san_list_head = NULL, *san_list_cur = NULL; // Subject alt name list structs
   mbedtls_asn1_sequence *ext_key_usage_head = NULL;  // List of extended key usage items
+  mbedtls_asn1_sequence *ext_key_usage_tail = ext_key_usage_head;
   mbedtls_entropy_context entropy;  // Entropy and ctr drbg contexts are needed for pseudo-rng
   mbedtls_ctr_drbg_context ctr_drbg;  // These will be deprecated in Mbed TLS 4.0.0
   char			defpath[1024],	// Default path
@@ -884,6 +855,7 @@ cupsCreateCredentialsRequest(
   int			err;		// Mbed TLS status
   char error_str[256];
   *error_str = '\0';
+  bool pkctx_is_init = false;
 
 
   DEBUG_printf("cupsCreateCredentialsRequest(path=\"%s\", purpose=0x%x, type=%d, usage=0x%x, organization=\"%s\", org_unit=\"%s\", locality=\"%s\", state_province=\"%s\", country=\"%s\", common_name=\"%s\", num_alt_names=%u, alt_names=%p)", path, purpose, type, usage, organization, org_unit, locality, state_province, country, common_name, (unsigned)num_alt_names, alt_names);
@@ -912,7 +884,7 @@ cupsCreateCredentialsRequest(
   // Seed the PRNG
   mbedtls_ctr_drbg_init(&ctr_drbg);
   mbedtls_entropy_init(&entropy);
-  err = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0)
+  err = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
   if (err)
   {
     DEBUG_puts("Failed to seed PRNG\n");
@@ -984,12 +956,12 @@ cupsCreateCredentialsRequest(
   // Set dn
   char dn[MAX_DN_STR_LEN + 1];
   err = snprintf(dn, sizeof(dn), "%s=%s,%s=%s,%s=%s,%s=%s,%s=%s,%s=%s",
-           MBEDTLS_OID_X520_COUNTRY_NAME, country,
-           MBEDTLS_OID_X520_ORGANIZATION_NAME, organization,
-           MBEDTLS_OID_X520_ORGANIZATIONAL_UNIT_NAME, org_unit,
-           MBEDTLS_OID_X520_COMMON_NAME, common_name,
-           MBEDTLS_OID_X520_LOCALITY_NAME, locality,
-           MBEDTLS_OID_X520_STATE_OR_PROVINCE_NAME, state_province);
+           MBEDTLS_OID_AT_COUNTRY, country,
+           MBEDTLS_OID_AT_ORGANIZATION, organization,
+           MBEDTLS_OID_AT_ORG_UNIT, org_unit,
+           MBEDTLS_OID_AT_CN, common_name,
+           MBEDTLS_OID_AT_LOCALITY, locality,
+           MBEDTLS_OID_AT_STATE, state_province);
 
   if (err > MAX_DN_STR_LEN)
   {
@@ -1016,7 +988,7 @@ cupsCreateCredentialsRequest(
     goto done;
   }
 
-  san_list_head = mbedtls_calloc(1, sizeof(mbedtls_x509_san_list));
+  san_list_head = calloc(1, sizeof(mbedtls_x509_san_list));
   if (!san_list_head)
   {
     DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1033,14 +1005,14 @@ cupsCreateCredentialsRequest(
   if (!strchr(common_name, '.'))
   {
     // Add common_name.local to the list, too...
-    localname = (char *)mbedtls_malloc(256);  // hostname.local
+    localname = (char *)malloc(256);  // hostname.local
     if (!localname)
     {
       DEBUG_puts("Failed to allocate memory for subject alt name localname\n");
       goto done;
     }
     snprintf(localname, 256, "%s.local", common_name);
-    san_list_cur->next = mbedtls_calloc(1, sizeof(mbedtls_x509_san_list));
+    san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
     if (!san_list_cur->next)
     {
       DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1062,7 +1034,7 @@ cupsCreateCredentialsRequest(
     {
       if (strcmp(alt_names[i], "localhost"))
       {
-        san_list_cur->next = mbedtls_calloc(1, sizeof(mbedtls_x509_san_list));
+        san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
         if (!san_list_cur->next)
         {
           DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1078,14 +1050,14 @@ cupsCreateCredentialsRequest(
     }
   }
 
-  err = mbedtls_x509write_csr_set_subject_alternative_name(&ctx, &san_list_head);
+  err = mbedtls_x509write_csr_set_subject_alternative_name(&req, san_list_head);
   if (err)
   {
     DEBUG_puts("Failed to set subject alt name\n");
     goto done;
   }
 
-  ext_key_usage_head = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+  ext_key_usage_head = calloc(1, sizeof(mbedtls_asn1_sequence));
   if (!ext_key_usage_head)
   {
     DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1093,12 +1065,12 @@ cupsCreateCredentialsRequest(
   }
   ext_key_usage_head->next = NULL;
   ext_key_usage_head->buf.tag = MBEDTLS_ASN1_OID;
-  mbedtls_asn1_sequence *ext_key_usage_tail = ext_key_usage_head;
+  ext_key_usage_tail = ext_key_usage_head;
 
   if (purpose & CUPS_CREDPURPOSE_SERVER_AUTH)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_SERVER_AUTH);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_SERVER_AUTH);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1110,8 +1082,8 @@ cupsCreateCredentialsRequest(
   }
   if (purpose & CUPS_CREDPURPOSE_CLIENT_AUTH)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_CLIENT_AUTH);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CLIENT_AUTH);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1123,8 +1095,8 @@ cupsCreateCredentialsRequest(
   }
   if (purpose & CUPS_CREDPURPOSE_CODE_SIGNING)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_CODE_SIGNING);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CODE_SIGNING);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1136,8 +1108,8 @@ cupsCreateCredentialsRequest(
   }
   if (purpose & CUPS_CREDPURPOSE_EMAIL_PROTECTION)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_EMAIL_PROTECTION);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_EMAIL_PROTECTION);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1150,8 +1122,8 @@ cupsCreateCredentialsRequest(
   // TIME_STAMPING was originally not included
   if (purpose & CUPS_CREDPURPOSE_OCSP_SIGNING)
   {
-    SET_OID(ext_key_usage_head->buf, MBEDTLS_OID_OCSP_SIGNING);
-    ext_key_usage_tail->next = mbedtls_calloc(1, sizeof(mbedtls_asn1_sequence));
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_OCSP_SIGNING);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1162,7 +1134,7 @@ cupsCreateCredentialsRequest(
     ext_key_usage_tail->buf.tag = MBEDTLS_ASN1_OID;
   }
 
-  err = mbedtls_x509write_csr_set_ext_key_usage(&ctx, ext_key_usage_head);
+  err = mbedtls_x509write_csr_set_ext_key_usage(&req, ext_key_usage_head);
   if (err)
   {
     DEBUG_puts("Failed to set extended key usage\n");
@@ -1188,30 +1160,26 @@ cupsCreateCredentialsRequest(
   if (usage & CUPS_CREDUSAGE_DECIPHER_ONLY)
     mbedtls_usage |= MBEDTLS_X509_KU_DECIPHER_ONLY;
 
-  err = mbedtls_x509write_csr_set_key_usage(&ctx, mbedtls_usage);
+  err = mbedtls_x509write_csr_set_key_usage(&req, mbedtls_usage);
   if (err)
   {
     DEBUG_puts("Failed to set key usage\n");
     goto done;
   }
 
-  err = mbedtls_x509write_csr_set_md_alg(&ctx, MBEDTLS_MD_SHA256);
-  if (err)
-  {
-    DEBUG_puts("Failed to set message digest algorithm\n");
-    goto done;
-  }
+  mbedtls_x509write_csr_set_md_alg(&req, MBEDTLS_MD_SHA256);
 
   // Seems there is no way to set the version
 
   // Save it... (Using PEM format)
   bytes = 0;
   err = mbedtls_x509write_csr_pem(&req, buffer, sizeof(buffer), mbedtls_ctr_drbg_random, &ctr_drbg);
-  bytes = strlen((charr *)buffer);
+  bytes = strlen((char *)buffer);
   if (err)
   {
-    DEBUG_printf("1cupsCreateCredentialsRequest: Unable to export public key and X.509 certificate request: %s", mbedtls_strerror(err));
-    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, mbedtls_strerror(err), 0);
+    mbedtls_strerror(err, error_str, sizeof(error_str));
+    DEBUG_printf("1cupsCreateCredentialsRequest: Unable to export public key and X.509 certificate request: %s", error_str);
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, error_str, 0);
     goto done;
   }
   else if ((fp = cupsFileOpen(csrfile, "w")) != NULL)
@@ -1233,8 +1201,9 @@ cupsCreateCredentialsRequest(
 
   if ((err = psa_export_public_key(key, buffer, bytes, &bytes)) < 0)
   {
-    DEBUG_printf("1cupsCreateCredentials: Unable to export public key: %s", mbedtls_strerror(err));
-    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, mbedtls_strerror(err), 0);
+    mbedtls_strerror(err, error_str, sizeof(error_str));
+    DEBUG_printf("1cupsCreateCredentials: Unable to export public key: %s", error_str);
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, error_str, 0);
     goto done;
   }
   else if ((fp = cupsFileOpen(pubfile, "w")) != NULL)
@@ -1262,7 +1231,7 @@ cupsCreateCredentialsRequest(
   if (pkctx_is_init)
     mbedtls_pk_free(&pkctx);
   if (localname)
-    mbedtls_free(localname);
+    free(localname);
   if (san_list_head)
   {
     san_list_cur = san_list_head;
@@ -1273,13 +1242,13 @@ cupsCreateCredentialsRequest(
         * It's the right thing for entries that were parsed from a certificate,
         * where pointers are to the raw certificate, but here all the
         * pointers were allocated while parsing from a user-provided string. */
-      if (cur->node.type == MBEDTLS_X509_SAN_DIRECTORY_NAME) {
-        mbedtls_x509_name *dn = &cur->node.san.directory_name;
-        mbedtls_free(dn->oid.p);
-        mbedtls_free(dn->val.p);
+      if (san_list_cur->node.type == MBEDTLS_X509_SAN_DIRECTORY_NAME) {
+        mbedtls_x509_name *dn = &san_list_cur->node.san.directory_name;
+        free(dn->oid.p);
+        free(dn->val.p);
         mbedtls_asn1_free_named_data_list(&dn->next);
       }
-      mbedtls_free(cur);
+      free(san_list_cur);
       san_list_cur = next;
     }
   }
@@ -1644,7 +1613,6 @@ cupsGetCredentialsTrust(
 // The "expiration_date" argument specifies the expiration date and time as a
 // Unix `time_t` value in seconds.
 //
-// WIP Since mbedtls seems like it doesn't support ext key usage extension (purpose) for CSRs
 bool					// O - `true` on success, `false` on failure
 cupsSignCredentialsRequest(
     const char         *path,		// I - Directory path for certificate/key store or `NULL` for default
@@ -1664,7 +1632,7 @@ cupsSignCredentialsRequest(
   mbedtls_x509write_cert	crt = {0};	// Certificate
   mbedtls_x509_crt	root_crt = {0};// Root certificate
   mbedtls_pk_context	root_key_ctx = {0}; // Root key pair PK context
-  mbedtls_x509_san_list *san_list_head, *san_list_cur = NULL; // Subject alt name list structs
+  mbedtls_x509_san_list *san_list_head = NULL, *san_list_cur = NULL; // Subject alt name list structs
   char			defpath[1024],	// Default path
 			temp[1024],	// Temporary string
  			crtfile[1024],	// Certificate filename
@@ -1672,7 +1640,6 @@ cupsSignCredentialsRequest(
 			*root_keydata;	// Root private key data
   size_t		tempsize;	// Size of temporary string
   cups_credpurpose_t	purpose;	// Credential purpose(s)
-  unsigned		mbedtls_usage;	// GNU TLS keyUsage bits
   cups_credusage_t	usage;		// Credential usage(s)
   cups_file_t		*fp;		// Key/cert file
   unsigned char		buffer[32768];	// Buffer for x509 data
@@ -1681,6 +1648,12 @@ cupsSignCredentialsRequest(
   time_t		curtime;	// Current time
   char error_str[256];
   *error_str = '\0';
+  char curtime_str[strlen("YYYYMMDDhhmmss")+1];
+  char expiration_str[strlen("YYYYMMDDhhmmss")+1];
+  mbedtls_asn1_sequence *ext_key_usage_head = NULL;  // List of extended key usage items
+  mbedtls_asn1_sequence *ext_key_usage_tail = ext_key_usage_head;
+  mbedtls_entropy_context entropy;  // Entropy and ctr drbg contexts are needed for pseudo-rng
+  mbedtls_ctr_drbg_context ctr_drbg;  // These will be deprecated in Mbed TLS 4.0.0
 
 
   DEBUG_printf("cupsSignCredentialsRequest(path=\"%s\", common_name=\"%s\", request=\"%s\", root_name=\"%s\", allowed_purpose=0x%x, allowed_usage=0x%x, cb=%p, cb_data=%p, expiration_date=%ld)", path, common_name, request, root_name, allowed_purpose, allowed_usage, cb, cb_data, (long)expiration_date);
@@ -1698,11 +1671,28 @@ cupsSignCredentialsRequest(
   if (!cb)
     cb = http_default_san_cb;
 
+  err = psa_crypto_init();
+  if (err)
+  {
+    mbedtls_strerror(err, error_str, sizeof(error_str));
+    DEBUG_printf("Failed to init psa crypto: %s\n", error_str);
+    goto done;
+  }
+
+  // Seed the PRNG
+  mbedtls_ctr_drbg_init(&ctr_drbg);
+  mbedtls_entropy_init(&entropy);
+  err = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
+  if (err)
+  {
+    DEBUG_puts("Failed to seed PRNG\n");
+    goto done;
+  }
+
   // Import the request...
   mbedtls_x509_csr_init(&csr);
-
   uint32_t request_len = strnlen(request, MAX_CREDS_STR_LEN) + 1;
-  if ((err = mbedtls_x509_csr_import(&csr, request, request_len)) != 0)
+  if ((err = mbedtls_x509_csr_parse(&csr, request, request_len)) != 0)
   {
     mbedtls_strerror(err, error_str, sizeof(error_str));
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, error_str, 0);
@@ -1725,19 +1715,19 @@ cupsSignCredentialsRequest(
   mbedtls_x509write_crt_init(&crt);
 
   mbedtls_x509_dn_gets(buffer, sizeof(buffer), &csr.subject);
-  if (!strstr(buffer, MBEDTLS_OID_X520_COUNTRY_NAME) && !strstr(buffer, "C="))
+  if (!strstr(buffer, MBEDTLS_OID_AT_COUNTRY) && !strstr(buffer, "C="))
   {
     if (strlen(buffer))
     {
-      cupsConcatString(buffer, ",C=US");
+      cupsConcatString(buffer, ",C=US", sizeof(buffer));
     }
     else
     {
-      cupsConcatString(buffer, "C=US");
+      cupsConcatString(buffer, "C=US", sizeof(buffer));
     }
   }
   char *common_name_pos = NULL;
-  if ((common_name_pos = strstr(buffer, MBEDTLS_OID_X520_COMMON_NAME)) != NULL)
+  if ((common_name_pos = strstr(buffer, MBEDTLS_OID_AT_CN)) != NULL)
   {
     char *end_pos = strchr(common_name_pos, ',');
     if (end_pos)
@@ -1746,18 +1736,18 @@ cupsSignCredentialsRequest(
       cupsCopyString(temp, end_pos, sizeof(temp));
       char toappend[256];
       snprintf(toappend, sizeof(toappend), "CN=%s", common_name);
-      cupsCopyString(common_name_pos, toappend, sizeof(buffer) - (size_t)(common_name_pos - buffer));
+      cupsCopyString(common_name_pos, toappend, sizeof(buffer) - (size_t)(common_name_pos - (char *)buffer));
       cupsCopyString(common_name_pos + strlen(toappend), temp, \
-                     sizeof(buffer) - (size_t)(common_name_pos - buffer - strlen(toappend)));
+                     sizeof(buffer) - (size_t)(common_name_pos - (char *)buffer) + strlen(toappend));
     }
     else
     {
       char toappend[256];
       snprintf(toappend, sizeof(toappend), ",CN=%s", common_name);
-      cupsCopyString(common_name_pos, toappend, sizeof(buffer) - (size_t)(common_name_pos - buffer));
+      cupsCopyString(common_name_pos, toappend, sizeof(buffer) - (size_t)(common_name_pos - (char *)buffer));
     }
   }
-  else if ((common_name_pos = strstr(buffer, MBEDTLS_OID_X520_COMMON_NAME)) != NULL)
+  else if ((common_name_pos = strstr(buffer, MBEDTLS_OID_AT_CN)) != NULL)
   {
     char *end_pos = strchr(common_name_pos, ',');
     if (end_pos)
@@ -1766,15 +1756,15 @@ cupsSignCredentialsRequest(
       cupsCopyString(temp, end_pos, sizeof(temp));
       char toappend[256];
       snprintf(toappend, sizeof(toappend), "CN=%s", common_name);
-      cupsCopyString(common_name_pos, toappend, sizeof(buffer) - (size_t)(common_name_pos - buffer));
+      cupsCopyString(common_name_pos, toappend, sizeof(buffer) - (size_t)(common_name_pos - (char *)buffer));
       cupsCopyString(common_name_pos + strlen(toappend), temp, \
-                     sizeof(buffer) - (size_t)(common_name_pos - buffer - strlen(toappend)));
+                     sizeof(buffer) - (size_t)(common_name_pos - (char *)buffer) + strlen(toappend));
     }
     else
     {
       char toappend[256];
       snprintf(toappend, sizeof(toappend), ",CN=%s", common_name);
-      cupsCopyString(common_name_pos, toappend, sizeof(buffer) - (size_t)(common_name_pos - buffer));
+      cupsCopyString(common_name_pos, toappend, sizeof(buffer) - (size_t)(common_name_pos - (char *)buffer));
     }
   }
   else
@@ -1783,37 +1773,37 @@ cupsSignCredentialsRequest(
     {
       char toappend[256];
       snprintf(toappend, sizeof(toappend), ",CN=%s", common_name);
-      cupsConcatString(buffer, toappend);
+      cupsConcatString(buffer, toappend, sizeof(buffer));
     }
     else
     {
       char toappend[256];
       snprintf(toappend, sizeof(toappend), "CN=%s", common_name);
-      cupsConcatString(buffer, toappend);
+      cupsConcatString(buffer, toappend, sizeof(buffer));
     }
   }
 
-  if (!strstr(buffer, MBEDTLS_OID_X520_STATE_OR_PROVINCE_NAME) && !strstr(buffer, "ST="))
+  if (!strstr(buffer, MBEDTLS_OID_AT_STATE) && !strstr(buffer, "ST="))
   {
     if (strlen(buffer))
     {
-      cupsConcatString(buffer, ",ST=Unknown");
+      cupsConcatString(buffer, ",ST=Unknown", sizeof(buffer));
     }
     else
     {
-      cupsConcatString(buffer, "ST=Unknown");
+      cupsConcatString(buffer, "ST=Unknown", sizeof(buffer));
     }
   }
 
-  if (!strstr(buffer, MBEDTLS_OID_X520_LOCALITY_NAME) && !strstr(buffer, "L="))
+  if (!strstr(buffer, MBEDTLS_OID_AT_LOCALITY) && !strstr(buffer, "L="))
   {
     if (strlen(buffer))
     {
-      cupsConcatString(buffer, ",L=Unknown");
+      cupsConcatString(buffer, ",L=Unknown", sizeof(buffer));
     }
     else
     {
-      cupsConcatString(buffer, "L=Unknown");
+      cupsConcatString(buffer, "L=Unknown", sizeof(buffer));
     }
   }
 
@@ -1832,9 +1822,7 @@ cupsSignCredentialsRequest(
     goto done;
   }
   
-  char curtime_str[strlen("YYYYMMDDhhmmss")+1];
   time_to_str(&curtime, curtime_str, sizeof(curtime_str));
-  char expiration_str[strlen("YYYYMMDDhhmmss")+1];
   time_to_str(&expiration_date, expiration_str, sizeof(expiration_str));
   err = mbedtls_x509write_crt_set_validity(&crt, curtime_str, expiration_str);
   if (err)
@@ -1851,7 +1839,7 @@ cupsSignCredentialsRequest(
   }
 
   mbedtls_x509_sequence *csr_cur = &csr.subject_alt_names;
-  san_list_head = mbedtls_calloc(1, sizeof(mbedtls_x509_san_list));
+  san_list_head = calloc(1, sizeof(mbedtls_x509_san_list));
   if (!san_list_head)
   {
     DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1883,7 +1871,7 @@ cupsSignCredentialsRequest(
   
   while (csr_cur)
     {
-      san_list_cur->next = mbedtls_calloc(1, sizeof(mbedtls_x509_san_list));
+      san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
       if (!san_list_cur->next)
       {
         DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1914,53 +1902,87 @@ cupsSignCredentialsRequest(
       csr_cur = csr_cur->next;
     }
 
-  for (i = 0; i < 100; i ++)
+  ext_key_usage_head = calloc(1, sizeof(mbedtls_asn1_sequence));
+  if (!ext_key_usage_head)
   {
-    unsigned type;			// Name type
+    DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
+    goto done;
+  }
+  ext_key_usage_head->next = NULL;
+  ext_key_usage_head->buf.tag = MBEDTLS_ASN1_OID;
+  ext_key_usage_tail = ext_key_usage_head;
 
-    tempsize = sizeof(temp) - 1;
-    if (mbedtls_x509_csr_get_subject_alt_name(csr, i, temp, &tempsize, &type, NULL) < 0)
-      break;
-
-    temp[tempsize] = '\0';
-
-    DEBUG_printf("1cupsSignCredentialsRequest: SAN %s", temp);
-
-    if (type != mbedtls_SAN_DNSNAME || (cb)(common_name, temp, cb_data))
+  if (allowed_purpose == 0 || allowed_purpose & CUPS_CREDPURPOSE_SERVER_AUTH)
+  {
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_SERVER_AUTH);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    if (!ext_key_usage_tail)
     {
-      // Good subjectAltName
-//      mbedtls_x509_crt_set_subject_alt_name(crt, type, temp, (unsigned)strlen(temp), i ? mbedtls_FSAN_APPEND : mbedtls_FSAN_SET);
-    }
-    else
-    {
-      _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Validation of subjectAltName in X.509 certificate request failed."), true);
+      DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
       goto done;
     }
+    ext_key_usage_tail = ext_key_usage_tail->next;
+    ext_key_usage_tail->next = NULL;
+    ext_key_usage_tail->buf.tag = MBEDTLS_ASN1_OID;
+  }
+  if (allowed_purpose & CUPS_CREDPURPOSE_CLIENT_AUTH)
+  {
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CLIENT_AUTH);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    if (!ext_key_usage_tail)
+    {
+      DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
+      goto done;
+    }
+    ext_key_usage_tail = ext_key_usage_tail->next;
+    ext_key_usage_tail->next = NULL;
+    ext_key_usage_tail->buf.tag = MBEDTLS_ASN1_OID;
+  }
+  if (allowed_purpose & CUPS_CREDPURPOSE_CODE_SIGNING)
+  {
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CODE_SIGNING);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    if (!ext_key_usage_tail)
+    {
+      DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
+      goto done;
+    }
+    ext_key_usage_tail = ext_key_usage_tail->next;
+    ext_key_usage_tail->next = NULL;
+    ext_key_usage_tail->buf.tag = MBEDTLS_ASN1_OID;
+  }
+  if (allowed_purpose & CUPS_CREDPURPOSE_EMAIL_PROTECTION)
+  {
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_EMAIL_PROTECTION);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    if (!ext_key_usage_tail)
+    {
+      DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
+      goto done;
+    }
+    ext_key_usage_tail = ext_key_usage_tail->next;
+    ext_key_usage_tail->next = NULL;
+    ext_key_usage_tail->buf.tag = MBEDTLS_ASN1_OID;
+  }
+  // TIME_STAMPING was originally not included
+  if (purpose & CUPS_CREDPURPOSE_OCSP_SIGNING)
+  {
+    SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_OCSP_SIGNING);
+    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    if (!ext_key_usage_tail)
+    {
+      DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
+      goto done;
+    }
+    ext_key_usage_tail = ext_key_usage_tail->next;
+    ext_key_usage_tail->next = NULL;
+    ext_key_usage_tail->buf.tag = MBEDTLS_ASN1_OID;
   }
 
-  for (purpose = 0, i = 0; i < 100; i ++)
+  err = mbedtls_x509write_crt_set_ext_key_usage(&crt, ext_key_usage_head);
+  if (err)
   {
-    tempsize = sizeof(temp) - 1;
-    if (mbedtls_x509_csr_get_key_purpose_oid(csr, i, temp, &tempsize, NULL) < 0)
-      break;
-    temp[tempsize] = '\0';
-
-    if (!strcmp(temp, mbedtls_KP_TLS_WWW_SERVER))
-      purpose |= CUPS_CREDPURPOSE_SERVER_AUTH;
-    if (!strcmp(temp, mbedtls_KP_TLS_WWW_CLIENT))
-      purpose |= CUPS_CREDPURPOSE_CLIENT_AUTH;
-    if (!strcmp(temp, mbedtls_KP_CODE_SIGNING))
-      purpose |= CUPS_CREDPURPOSE_CODE_SIGNING;
-    if (!strcmp(temp, mbedtls_KP_EMAIL_PROTECTION))
-      purpose |= CUPS_CREDPURPOSE_EMAIL_PROTECTION;
-    if (!strcmp(temp, mbedtls_KP_OCSP_SIGNING))
-      purpose |= CUPS_CREDPURPOSE_OCSP_SIGNING;
-  }
-  DEBUG_printf("1cupsSignCredentialsRequest: purpose=0x%04x", purpose);
-
-  if (purpose & ~allowed_purpose)
-  {
-    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Bad keyUsage extension in X.509 certificate request."), true);
+    DEBUG_puts("Failed to set extended key usage\n");
     goto done;
   }
 
@@ -1976,50 +1998,44 @@ cupsSignCredentialsRequest(
   if (purpose & CUPS_CREDPURPOSE_OCSP_SIGNING)
     mbedtls_x509_crt_set_key_purpose_oid(crt, mbedtls_KP_OCSP_SIGNING, 0);
 #endif // 0
+  usage = 0;
+  if (csr.key_usage & MBEDTLS_X509_KU_DIGITAL_SIGNATURE)
+    usage |= CUPS_CREDUSAGE_DIGITAL_SIGNATURE;
+  if (csr.key_usage & MBEDTLS_X509_KU_NON_REPUDIATION)
+    usage |= CUPS_CREDUSAGE_NON_REPUDIATION;
+  if (csr.key_usage & MBEDTLS_X509_KU_KEY_ENCIPHERMENT)
+    usage |= CUPS_CREDUSAGE_KEY_ENCIPHERMENT;
+  if (csr.key_usage & MBEDTLS_X509_KU_DATA_ENCIPHERMENT)
+    usage |= CUPS_CREDUSAGE_DATA_ENCIPHERMENT;
+  if (csr.key_usage & MBEDTLS_X509_KU_KEY_AGREEMENT)
+    usage |= CUPS_CREDUSAGE_KEY_AGREEMENT;
+  if (csr.key_usage & MBEDTLS_X509_KU_KEY_CERT_SIGN)
+    usage |= CUPS_CREDUSAGE_KEY_CERT_SIGN;
+  if (csr.key_usage & MBEDTLS_X509_KU_CRL_SIGN)
+    usage |= CUPS_CREDUSAGE_CRL_SIGN;
+  if (csr.key_usage & MBEDTLS_X509_KU_ENCIPHER_ONLY)
+    usage |= CUPS_CREDUSAGE_ENCIPHER_ONLY;
+  if (csr.key_usage & MBEDTLS_X509_KU_DECIPHER_ONLY)
+    usage |= CUPS_CREDUSAGE_DECIPHER_ONLY;
 
-  if (mbedtls_x509_csr_get_key_usage(csr, &mbedtls_usage, NULL) < 0)
+  DEBUG_printf("1cupsSignCredentialsRequest: usage=0x%04x", usage);
+
+  if (usage & ~allowed_usage)
   {
-    // No keyUsage, use default for TLS...
-    mbedtls_usage = mbedtls_KEY_DIGITAL_SIGNATURE | mbedtls_KEY_KEY_ENCIPHERMENT;
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Bad extKeyUsage extension in X.509 certificate request."), true);
+    goto done;
   }
-  else
+
+  err = mbedtls_x509write_crt_set_key_usage(&crt, csr.key_usage);
+  if (err)
   {
-    // Got keyUsage, convert to CUPS bitfield
-    usage = 0;
-    if (mbedtls_usage & mbedtls_KEY_DIGITAL_SIGNATURE)
-      usage |= CUPS_CREDUSAGE_DIGITAL_SIGNATURE;
-    if (mbedtls_usage & mbedtls_KEY_NON_REPUDIATION)
-      usage |= CUPS_CREDUSAGE_NON_REPUDIATION;
-    if (mbedtls_usage & mbedtls_KEY_KEY_ENCIPHERMENT)
-      usage |= CUPS_CREDUSAGE_KEY_ENCIPHERMENT;
-    if (mbedtls_usage & mbedtls_KEY_DATA_ENCIPHERMENT)
-      usage |= CUPS_CREDUSAGE_DATA_ENCIPHERMENT;
-    if (mbedtls_usage & mbedtls_KEY_KEY_AGREEMENT)
-      usage |= CUPS_CREDUSAGE_KEY_AGREEMENT;
-    if (mbedtls_usage & mbedtls_KEY_KEY_CERT_SIGN)
-      usage |= CUPS_CREDUSAGE_KEY_CERT_SIGN;
-    if (mbedtls_usage & mbedtls_KEY_CRL_SIGN)
-      usage |= CUPS_CREDUSAGE_CRL_SIGN;
-    if (mbedtls_usage & mbedtls_KEY_ENCIPHER_ONLY)
-      usage |= CUPS_CREDUSAGE_ENCIPHER_ONLY;
-    if (mbedtls_usage & mbedtls_KEY_DECIPHER_ONLY)
-      usage |= CUPS_CREDUSAGE_DECIPHER_ONLY;
-
-    DEBUG_printf("1cupsSignCredentialsRequest: usage=0x%04x", usage);
-
-    if (usage & ~allowed_usage)
-    {
-      _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Bad extKeyUsage extension in X.509 certificate request."), true);
-      goto done;
-    }
+    DEBUG_puts("Failed to set extended usage\n");
+    goto done;
   }
-//  mbedtls_x509_crt_set_key_usage(crt, mbedtls_usage);
 
-  mbedtls_x509_crt_set_version(crt, 3);
+  mbedtls_x509write_crt_set_version(&crt, MBEDTLS_X509_CRT_VERSION_3);
 
-  bytes = sizeof(buffer);
-  if (mbedtls_x509_crt_get_key_id(crt, 0, buffer, &bytes) >= 0)
-    mbedtls_x509_crt_set_subject_key_id(crt, buffer, bytes);
+  mbedtls_x509write_crt_set_subject_key(&crt, &csr.pk);
 
   // Try loading a root certificate...
   root_crtdata = cupsCopyCredentials(path, root_name ? root_name : "_site_");
@@ -2028,54 +2044,81 @@ cupsSignCredentialsRequest(
   if (root_crtdata && root_keydata)
   {
     // Load root certificate...
-    datum.data = (unsigned char *)root_crtdata;
-    datum.size = strlen(root_crtdata);
-
     mbedtls_x509_crt_init(&root_crt);
-    if (mbedtls_x509_crt_import(root_crt, &datum, mbedtls_X509_FMT_PEM) < 0)
+    uint32_t creds_len = strnlen(root_crtdata, MAX_CREDS_STR_LEN) + 1;
+    err = mbedtls_x509_crt_parse(&root_crt, root_crtdata, creds_len);
+    if (err)
     {
-      // No good, clear it...
-      mbedtls_x509_crt_deinit(root_crt);
-      root_crt = NULL;
+      DEBUG_puts("Failed to parse root cert\n");
+      mbedtls_x509_crt_free(&root_crt);
+      memset(&root_crt, sizeof(root_crt), 0);
     }
     else
     {
-      // Load root private key...
-      datum.data = (unsigned char *)root_keydata;
-      datum.size = strlen(root_keydata);
-
-      mbedtls_x509_privkey_init(&root_key);
-      if (mbedtls_x509_privkey_import(root_key, &datum, mbedtls_X509_FMT_PEM) < 0)
+      // Load key pair
+      mbedtls_pk_init(&root_key_ctx);
+      err = mbedtls_pk_parse_key(&root_key_ctx, root_keydata, strlen(root_keydata) + 1, NULL, 0, mbedtls_ctr_drbg_random, &ctr_drbg);
+      if (err)
       {
-        // No food, clear them...
-        mbedtls_x509_privkey_deinit(root_key);
-        root_key = NULL;
-
-        mbedtls_x509_crt_deinit(root_crt);
-        root_crt = NULL;
+        DEBUG_puts("Failed to parse root key pair\n");
+        mbedtls_x509_crt_free(&root_crt);
+        memset(&root_crt, sizeof(root_crt), 0);
+        mbedtls_pk_free(&root_key_ctx);
+        memset(&root_key_ctx, sizeof(root_key_ctx), 0);
       }
     }
   }
-
   free(root_crtdata);
   free(root_keydata);
 
-  if (!root_crt || !root_key)
+  if (root_crt.serial.p && root_key_ctx.private_priv_id != 0)
   {
-    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Unable to load X.509 CA certificate and private key."), true);
+    // Set issuer key and name
+    char issuer_name[256];
+    err = mbedtls_x509_dn_gets(issuer_name, sizeof(issuer_name), &root_crt.subject);
+    if (err)
+    {
+      DEBUG_puts("Failed to parse certificate dn\n");
+      mbedtls_x509_crt_free(&root_crt);
+      mbedtls_pk_free(&root_key_ctx);
+      goto done;
+    }
+
+    err = mbedtls_x509write_crt_set_issuer_name(&crt, issuer_name);
+    if (err)
+    {
+      DEBUG_puts("Failed to set issuer name\n");
+      mbedtls_x509_crt_free(&root_crt);
+      mbedtls_pk_free(&root_key_ctx);
+      goto done;
+    }
+
+    // No check for if the issuer key and key of issuer cert match
+    mbedtls_x509write_crt_set_issuer_key(&crt, &root_key_ctx);
+  }
+  else
+  {
+    DEBUG_puts("Failed to load root certificate\n");
     goto done;
   }
 
-  mbedtls_x509_crt_sign(crt, root_crt, root_key);
+  err = mbedtls_x509write_crt_set_authority_key_identifier(&crt);
+  if (err)
+  {
+    DEBUG_puts("Failed to set authority key identifier\n");
+    goto done;
+  }
 
   // Save it...
   http_make_path(crtfile, sizeof(crtfile), path, common_name, "crt");
-
-  bytes = sizeof(buffer);
-  if ((err = mbedtls_x509_crt_export(crt, mbedtls_X509_FMT_PEM, buffer, &bytes)) < 0)
+  bytes = 0;
+  err = mbedtls_x509write_crt_pem(&crt, buffer, sizeof(buffer), mbedtls_ctr_drbg_random, &ctr_drbg);
+  bytes = strlen((char *)buffer);
+  if (err)
   {
-    DEBUG_printf("1cupsSignCredentialsRequest: Unable to export public key and X.509 certificate: %s", mbedtls_strerror(err));
-    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, mbedtls_strerror(err), 0);
+    mbedtls_strerror(err, error_str, sizeof(error_str));
+    DEBUG_printf("1cupsSignCredentialsRequest: Unable to export public key and X.509 certificate: %s", error_str);
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, error_str, 0);
     goto done;
   }
   else if ((fp = cupsFileOpen(crtfile, "w")) != NULL)
@@ -2097,15 +2140,38 @@ cupsSignCredentialsRequest(
 
   // Cleanup...
   done:
+  mbedtls_psa_crypto_free();
+  mbedtls_x509write_crt_free(&crt);
+  mbedtls_x509_csr_free(&csr);
 
-  if (csr)
-    mbedtls_x509_csr_deinit(csr);
-  if (crt)
-    mbedtls_x509_crt_deinit(crt);
-  if (root_crt)
-    mbedtls_x509_crt_deinit(root_crt);
-  if (root_key)
-    mbedtls_x509_privkey_deinit(root_key);
+  if (san_list_head)
+  {
+    san_list_cur = san_list_head;
+    while (san_list_cur)
+    {
+      mbedtls_x509_san_list *next = san_list_cur->next;
+      /* Note: mbedtls_x509_free_subject_alt_name() is not what we want here.
+        * It's the right thing for entries that were parsed from a certificate,
+        * where pointers are to the raw certificate, but here all the
+        * pointers were allocated while parsing from a user-provided string. */
+      if (san_list_cur->node.type == MBEDTLS_X509_SAN_DIRECTORY_NAME) {
+        mbedtls_x509_name *dn = &san_list_cur->node.san.directory_name;
+        free(dn->oid.p);
+        free(dn->val.p);
+        mbedtls_asn1_free_named_data_list(&dn->next);
+      }
+      free(san_list_cur);
+      san_list_cur = next;
+    }
+  }
+  mbedtls_asn1_sequence_free(ext_key_usage_head);
+
+  if (err)
+  {
+    mbedtls_strerror(err, error_str, sizeof(error_str));
+    DEBUG_printf("1cupsCreateCredentials: Error: %s", error_str);
+    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, error_str, 0);
+  }
 
   return (ret);
 }
@@ -2233,12 +2299,11 @@ _httpCreateCredentials(
   // Seed the PRNG
   mbedtls_ctr_drbg_init(&ctr_drbg);
   mbedtls_entropy_init(&entropy);
-  err = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0)
+  err = mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0);
   if (err)
   {
     mbedtls_strerror(err, error_str, sizeof(error_str));
     DEBUG_printf("Failed to seed PRNG: %s\n", error_str);
-    goto done;
   }
 
   hcreds->use  = 1;
@@ -2315,7 +2380,7 @@ httpGetSecurity(http_t *http,		// I - HTTP connection
     return (NULL);
 
   // Record the TLS version and cipher suite...
-  cipherName = mbedtls_ssl_get_ciphersuite_name(mbedtls_ssl_session_get_ciphersuite_id(&http->tls->session));
+  cipherName = mbedtls_ssl_get_ciphersuite_name(mbedtls_ssl_session_get_ciphersuite_id(http->tls->private_session));
 
   switch (mbedtls_ssl_get_version_number(http->tls))
   {
@@ -2418,7 +2483,7 @@ _httpTLSStart(http_t *http)		// I - Connection to server
   void			*old_data;	// Old timeout data
   _cups_globals_t	*cg = _cupsGlobals();
 					// Per-thread globals
-  static const int const versions[] =// SSL/TLS versions
+  static const int versions[] =// SSL/TLS versions
   {
     MBEDTLS_SSL_VERSION_UNKNOWN,
     MBEDTLS_SSL_VERSION_TLS1_2,
@@ -2452,8 +2517,6 @@ _httpTLSStart(http_t *http)		// I - Connection to server
 
     return (false);
   }
-
-  status = psa_crypto_init;
 
   // Seed the PRNG
   mbedtls_ctr_drbg_init(&ctr_drbg);
@@ -2492,7 +2555,7 @@ _httpTLSStart(http_t *http)		// I - Connection to server
     _cupsSetError(IPP_STATUS_ERROR_CUPS_PKI, error_str, 0);
 
     mbedtls_ssl_free(http->tls);
-    mbedtls_ssl_config_free(conf);
+    mbedtls_ssl_config_free(&conf);
     http->tls = NULL;
 
     return (false);
@@ -2626,7 +2689,7 @@ _httpTLSStart(http_t *http)		// I - Connection to server
 	cupsMutexUnlock(&tls_mutex);
 
   mbedtls_ssl_free(http->tls);
-  mbedtls_ssl_config_free(conf);
+  mbedtls_ssl_config_free(&conf);
   http->tls = NULL;
 	return (false);
       }
@@ -2644,7 +2707,7 @@ _httpTLSStart(http_t *http)		// I - Connection to server
       _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Unable to create server credentials."), true);
       cupsMutexUnlock(&tls_mutex);
       mbedtls_ssl_free(http->tls);
-      mbedtls_ssl_config_free(conf);
+      mbedtls_ssl_config_free(&conf);
       http->tls = NULL;
       return (false);
     }
@@ -2701,21 +2764,23 @@ _httpTLSStart(http_t *http)		// I - Connection to server
 
 
   if (tls_options & _HTTP_TLS_DENY_CBC)
+  {
     // mbedtls does not have a blacklist for ciphersuites
-
+  }
   // Finish setup
   status = mbedtls_ssl_setup(http->tls, &conf);
   if (status)
   {
     mbedtls_strerror(status, error_str, sizeof(error_str));
     DEBUG_printf("Failed ssl setup: %s\n", error_str);
-    goto 
+    return false;
   }
   status = mbedtls_ssl_set_hostname(http->tls, hostname);
   if (status)
   {
     mbedtls_strerror(status, error_str, sizeof(error_str));
     DEBUG_printf("Failed to set hostname: %s\n", error_str);
+    return false;
   }
 
   // TODO: look into using httpWait as recv_timeout
@@ -2745,7 +2810,7 @@ _httpTLSStart(http_t *http)		// I - Connection to server
     {
       http->error  = EIO;
       http->status = HTTP_STATUS_ERROR;
-      _cupsSetError(IPP_STATUS_ERROR_CUPS_PKI, gnutls_strerror(status), 0);
+      _cupsSetError(IPP_STATUS_ERROR_CUPS_PKI, error_str, 0);
 
       mbedtls_ssl_free(http->tls);
       mbedtls_ssl_config_free(&conf);
@@ -2788,7 +2853,7 @@ _httpTLSStop(http_t *http)		// I - Connection to server
     }
   }
 
-  mbedtls_ssl_config_free(http->tls->conf);
+  mbedtls_ssl_config_free(http->tls->private_conf);
   mbedtls_ssl_free(http->tls);
   http->tls = NULL;
 
@@ -2869,44 +2934,44 @@ mbedtls_create_key(psa_key_attributes_t *key_atts, // I - Key attributes
                    cups_credtype_t type) // I - Type of key
 {
   int ret = PSA_ERROR_CORRUPTION_DETECTED;
-  psa_usage_t usage_flags = PSA_KEY_USAGE_EXPORT;
+  psa_set_key_usage_flags(key_atts, PSA_KEY_USAGE_EXPORT);
 
   switch (type)
   {
     case CUPS_CREDTYPE_ECDSA_P256_SHA256 :
   psa_set_key_type(key_atts, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
-  psa_set_key_algorithm(key_atts, PSA_ALG_ECDSA(PSA_ALG_SHA256));
+  psa_set_key_algorithm(key_atts, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
   psa_set_key_bits(key_atts, 256);
 	break;
 
     case CUPS_CREDTYPE_ECDSA_P384_SHA256 :
   psa_set_key_type(key_atts, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
-  psa_set_key_algorithm(key_atts, PSA_ALG_ECDSA(PSA_ALG_SHA256));
+  psa_set_key_algorithm(key_atts, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
   psa_set_key_bits(key_atts, 384);
 	break;
 
     case CUPS_CREDTYPE_ECDSA_P521_SHA256 :
 	psa_set_key_type(key_atts, PSA_KEY_TYPE_ECC_KEY_PAIR(PSA_ECC_FAMILY_SECP_R1));
-  psa_set_key_algorithm(key_atts, PSA_ALG_ECDSA(PSA_ALG_SHA256));
+  psa_set_key_algorithm(key_atts, PSA_ALG_ECDSA(PSA_ALG_SHA_256));
   psa_set_key_bits(key_atts, 521);
 	break;
 
     case CUPS_CREDTYPE_RSA_2048_SHA256 :
 	psa_set_key_type(key_atts, PSA_KEY_TYPE_RSA_KEY_PAIR);
-  psa_set_key_algorithm(key_atts, PSA_ALG_PKCS1V15(PSA_ALG_SHA256));
+  psa_set_key_algorithm(key_atts, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_256));
   psa_set_key_bits(key_atts, 2048);
 	break;
 
     default :
     case CUPS_CREDTYPE_RSA_3072_SHA256 :
 	psa_set_key_type(key_atts, PSA_KEY_TYPE_RSA_KEY_PAIR);
-  psa_set_key_algorithm(key_atts, PSA_ALG_PKCS1V15(PSA_ALG_SHA256));
+  psa_set_key_algorithm(key_atts, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_256));
   psa_set_key_bits(key_atts, 3072);
 	break;
 
     case CUPS_CREDTYPE_RSA_4096_SHA256 :
 	psa_set_key_type(key_atts, PSA_KEY_TYPE_RSA_KEY_PAIR);
-  psa_set_key_algorithm(key_atts, PSA_ALG_PKCS1V15(PSA_ALG_SHA256));
+  psa_set_key_algorithm(key_atts, PSA_ALG_RSA_PKCS1V15_SIGN(PSA_ALG_SHA_256));
   psa_set_key_bits(key_atts, 4096);
 	break;
   }
@@ -2961,7 +3026,7 @@ int mbedtls_x509write_csr_set_ext_key_usage(mbedtls_x509write_csr *reqs,
                          mbedtls_asn1_write_tag(&c, buf,
                                                 MBEDTLS_ASN1_CONSTRUCTED | MBEDTLS_ASN1_SEQUENCE));
 
-    return mbedtls_x509write_csr_set_extension(ctx,
+    return mbedtls_x509write_csr_set_extension(reqs,
                                                MBEDTLS_OID_EXTENDED_KEY_USAGE,
                                                MBEDTLS_OID_SIZE(MBEDTLS_OID_EXTENDED_KEY_USAGE),
                                                1, c, len);
@@ -2975,14 +3040,14 @@ void mbedtls_x509_time_t(mbedtls_x509_time *in, time_t *tt)
   tm.tm_mon = in->mon - 1;
   tm.tm_mday = in->day;
   tm.tm_hour = in->hour;
-  tm.tm_min = now->min;
+  tm.tm_min = in->min;
   tm.tm_sec = in->sec;
   tm.tm_isdst = -1;
   *tt = mktime(&tm);
 }
 
 
-int mbedtls_http_read(void *ctx, unsigned char *buf, size_t len)
+int mbedtls_http_read(void *ctx, unsigned char *data, size_t length)
 {
   http_t	*http;			// HTTP connection
   ssize_t	bytes;			// Bytes read
@@ -3027,7 +3092,7 @@ int mbedtls_http_read(void *ctx, unsigned char *buf, size_t len)
   }
 }
 
-int mbedtls_http_write(void *ctx, unsigned char *buf, size_t len)
+int mbedtls_http_write(void *ctx, const unsigned char *data, size_t length)
 {
   ssize_t bytes;			// Bytes written
 
@@ -3066,19 +3131,13 @@ mbedtls_load_crl(void)
 
   mbedtls_x509_crl_init(&tls_crl);
 
-  cups_file_t		*fp;		// CRL file
-  char		filename[1024],	// site.crl
-    line[256];	// Base64-encoded line
-  unsigned char	*data = NULL;	// Buffer for cert data
-  size_t		alloc_data = 0,	// Bytes allocated
-    num_data = 0;	// Bytes used
-  size_t		decoded;	// Bytes decoded
-  mbedtls_datum_t	datum;		// Data record
+  char		filename[1024];	// site.crl
+  int err;
 
 
   http_make_path(filename, sizeof(filename), CUPS_SERVERROOT, "site", "crl");
 
-  if ((int err = mbedtls_x509_crl_parse_file(&tls_crl, filename)) != 0)
+  if ((err = mbedtls_x509_crl_parse_file(&tls_crl, filename)) != 0)
   {
     char error_str[256];
     *error_str = '\0';

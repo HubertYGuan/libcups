@@ -27,6 +27,7 @@ extern char **environ;			// @private@
 #  endif // __APPLE__
 #endif // _WIN32
 
+#define O_NOFOLLOW 0
 
 //
 // Overview

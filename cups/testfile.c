@@ -35,17 +35,18 @@ static int	read_write_tests(bool compression);
 
 
 //
-// 'main()' - Main entry.
+// 'testfile_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testfile_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		status;			// Exit status
   int		i;			// Looping var
   char		filename[1024];		// Filename buffer
   cups_file_t	*fp;			// File pointer
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testfile", NULL}; // Command-line arguments
 #ifndef _WIN32
   int		fds[2];			// Open file descriptors
   cups_file_t	*fdfile;		// File opened with cupsFileOpenFd()
@@ -291,7 +292,7 @@ main(int  argc,				// I - Number of command-line arguments
     }
   }
 
-  return (status);
+  // Return the test status...
 }
 
 

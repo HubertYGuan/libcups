@@ -24,6 +24,8 @@
 #  include <mbedtls/rsa.h>
 #  include <mbedtls/ecdsa.h>
 #  include <mbedtls/error.h>
+#  include <mbedtls/entropy.h>
+#  include <mbedtls/ctr_drbg.h>
 #endif // HAVE_OPENSSL
 
 
@@ -555,7 +557,7 @@ cupsJWTHasValidSignature(
           mbedtls_mpi_read_binary(&r, jwt->signature, sig_len);
           mbedtls_mpi_read_binary(&s, jwt->signature + sig_len, sig_len);
 
-          if ((ret = !mbedtls_ecdsa_verify(&ecdsa_ctx.grp, hash, hash_len, &ecdsa_ctx.Q, &r, &s)) == false)
+          if ((ret = !mbedtls_ecdsa_verify(&ecdsa_ctx.private_grp, hash, hash_len, &ecdsa_ctx.private_Q, &r, &s)) == false)
             DEBUG_puts("Failed to verify ecdsa signature\n");
           
           mbedtls_mpi_free(&r);
@@ -590,7 +592,7 @@ cupsJWTImportString(
 {
   cups_jwt_t	*jwt;			// JWT object
   size_t	datalen;		// Size of data
-  char		data[65536];		// Data
+  char		data[32768];		// Data
   const char	*kid,			// Key identifier
 		*alg;			// Signature algorithm, if any
 
@@ -1021,6 +1023,7 @@ cupsJWTLoadCredentials(
   {
     case MBEDTLS_PK_RSA:
     case MBEDTLS_PK_RSA_ALT:
+        isrsa = true;
         mbedtls_rsa_context *rsa = mbedtls_pk_rsa(pkey);
         if (!rsa)
         {
@@ -1028,7 +1031,7 @@ cupsJWTLoadCredentials(
           mbedtls_psa_crypto_free();
           goto done;
         }
-        if (mbedtls_mpi_write_base64(&rsa->N, n, sizeof(n)) || mbedtls_mpi_write_base64(&rsa->E, e, sizeof(e)) || mbedtls_mpi_write_base64(&rsa->D, d, sizeof(d)) || mbedtls_mpi_write_base64(&rsa->P, p, sizeof(p)) || mbedtls_mpi_write_base64(&rsa->Q, q, sizeof(q)) || mbedtls_mpi_write_base64(&rsa->QP, qi, sizeof(qi)) || mbedtls_mpi_write_base64(&rsa->DP, dp, sizeof(dp)) || mbedtls_mpi_write_base64(&rsa->DQ, dq, sizeof(dq)))
+        if (mbedtls_mpi_write_base64(&rsa->private_N, n, sizeof(n)) || mbedtls_mpi_write_base64(&rsa->private_E, e, sizeof(e)) || mbedtls_mpi_write_base64(&rsa->private_D, d, sizeof(d)) || mbedtls_mpi_write_base64(&rsa->private_P, p, sizeof(p)) || mbedtls_mpi_write_base64(&rsa->private_Q, q, sizeof(q)) || mbedtls_mpi_write_base64(&rsa->private_QP, qi, sizeof(qi)) || mbedtls_mpi_write_base64(&rsa->private_DP, dp, sizeof(dp)) || mbedtls_mpi_write_base64(&rsa->private_DQ, dq, sizeof(dq)))
         {
           DEBUG_puts("Failed to write an RSA value\n");
           mbedtls_pk_free(&pkey);
@@ -1039,6 +1042,7 @@ cupsJWTLoadCredentials(
     case MBEDTLS_PK_ECDSA:
     case MBEDTLS_PK_ECKEY:
     case MBEDTLS_PK_ECKEY_DH:
+        isrsa = false;
         mbedtls_ecp_keypair *ecp = mbedtls_pk_ec(pkey);
         if (!ecp)
         {
@@ -1046,7 +1050,7 @@ cupsJWTLoadCredentials(
           mbedtls_psa_crypto_free();
           goto done;
         }
-        switch (ecp->grp.id)
+        switch (ecp->private_grp.id)
         {
           case MBEDTLS_ECP_DP_SECP256R1:
               crv = "P-256";
@@ -1062,7 +1066,7 @@ cupsJWTLoadCredentials(
               break;
         }
         
-        if (mbedtls_mpi_write_base64(&ecp->Q.X, x, sizeof(x)) || mbedtls_mpi_write_base64(&ecp->Q.Y, y, sizeof(y)) || mbedtls_mpi_write_base64(&ecp->d, d, sizeof(d)))
+        if (mbedtls_mpi_write_base64(&ecp->private_Q.private_X, x, sizeof(x)) || mbedtls_mpi_write_base64(&ecp->private_Q.private_Y, y, sizeof(y)) || mbedtls_mpi_write_base64(&ecp->private_d, d, sizeof(d)))
         {
           DEBUG_puts("Failed to write an ECP value\n");
           mbedtls_pk_free(&pkey);
@@ -1256,7 +1260,7 @@ cupsJWTMakePrivateKey(cups_jwa_t alg)	// I - Signing/encryption algorithm
       return NULL;
     }
 
-    if (mbedtls_mpi_write_base64(&rsa.N, n, sizeof(n)) || mbedtls_mpi_write_base64(&rsa.E, e, sizeof(e)) || mbedtls_mpi_write_base64(&rsa.D, d, sizeof(d)) || mbedtls_mpi_write_base64(&rsa.P, p, sizeof(p)) || mbedtls_mpi_write_base64(&rsa.Q, q, sizeof(q)) || mbedtls_mpi_write_base64(&rsa.QP, qi, sizeof(qi)) || mbedtls_mpi_write_base64(&rsa.DP, dp, sizeof(dp)) || mbedtls_mpi_write_base64(&rsa.DQ, dq, sizeof(dq)))
+    if (mbedtls_mpi_write_base64(&rsa.private_N, n, sizeof(n)) || mbedtls_mpi_write_base64(&rsa.private_E, e, sizeof(e)) || mbedtls_mpi_write_base64(&rsa.private_D, d, sizeof(d)) || mbedtls_mpi_write_base64(&rsa.private_P, p, sizeof(p)) || mbedtls_mpi_write_base64(&rsa.private_Q, q, sizeof(q)) || mbedtls_mpi_write_base64(&rsa.private_QP, qi, sizeof(qi)) || mbedtls_mpi_write_base64(&rsa.private_DP, dp, sizeof(dp)) || mbedtls_mpi_write_base64(&rsa.private_DQ, dq, sizeof(dq)))
     {
       DEBUG_puts("Failed to write an RSA value\n");
       mbedtls_rsa_free(&rsa);
@@ -1374,7 +1378,7 @@ cupsJWTMakePrivateKey(cups_jwa_t alg)	// I - Signing/encryption algorithm
       mbedtls_psa_crypto_free();
       return NULL;
     }
-    if (mbedtls_mpi_write_base64(&ecp.Q.X, x, sizeof(x)) || mbedtls_mpi_write_base64(&ecp.Q.Y, y, sizeof(y)) || mbedtls_mpi_write_base64(&ecp.d, d, sizeof(d)))
+    if (mbedtls_mpi_write_base64(&ecp.private_Q.private_X, x, sizeof(x)) || mbedtls_mpi_write_base64(&ecp.private_Q.private_Y, y, sizeof(y)) || mbedtls_mpi_write_base64(&ecp.private_d, d, sizeof(d)))
     {
       DEBUG_puts("Failed to write an ECP value\n");
       mbedtls_ecp_keypair_free(&ecp);
@@ -2319,6 +2323,7 @@ int mbedtls_ecdsa_import_jwk(mbedtls_ecdsa_context *ecdsa_ctx, cups_json_t *jwk,
   char error_str[256];
   *error_str = '\0';
   mbedtls_ecp_group_id curve = MBEDTLS_ECP_DP_NONE;
+  unsigned char *buf = NULL; // Allocated public key buffer
 
   mbedtls_mpi_init(&x);
   mbedtls_mpi_init(&y);
@@ -2335,7 +2340,7 @@ int mbedtls_ecdsa_import_jwk(mbedtls_ecdsa_context *ecdsa_ctx, cups_json_t *jwk,
   else
     return ret;
 
-  ret = mbedtls_ecp_group_load(&ecdsa_ctx->grp, curve);
+  ret = mbedtls_ecp_group_load(&ecdsa_ctx->private_grp, curve);
   if (ret)
   {
     mbedtls_strerror(ret, error_str, sizeof(error_str));
@@ -2350,31 +2355,36 @@ int mbedtls_ecdsa_import_jwk(mbedtls_ecdsa_context *ecdsa_ctx, cups_json_t *jwk,
     goto ecdsa_done;
   }
 
-  unsigned char buf[1 + 2*((ecdsa_ctx->grp.pbits + 7u) / 8u)];
+  buf = (unsigned char *)malloc(1 + 2*((ecdsa_ctx->private_grp.pbits + 7u) / 8u));
+  if (!buf)
+  {
+    DEBUG_puts("Failed to allocate memory for pub key buffer\n");
+    goto ecdsa_done;
+  }
   buf[0] = 0x04;
 
-  if (!mbedtls_mpi_write_binary(&x, buf + 1, ((ecdsa_ctx->grp.pbits + 7u) / 8u)))
+  if (!mbedtls_mpi_write_binary(&x, buf + 1, ((ecdsa_ctx->private_grp.pbits + 7u) / 8u)))
   {
-    if (mbedtls_mpi_write_binary(&y, buf + 1 + ((ecdsa_ctx->grp.pbits + 7u) / 8u), ((ecdsa_ctx->grp.pbits + 7u) / 8u)))
+    if (mbedtls_mpi_write_binary(&y, buf + 1 + ((ecdsa_ctx->private_grp.pbits + 7u) / 8u), ((ecdsa_ctx->private_grp.pbits + 7u) / 8u)))
     {
-      DEBUG_PUTS("Failed to copy y coord\n");
+      DEBUG_puts("Failed to copy y coord\n");
       goto ecdsa_done;
     }
   }
   else
   {
-    DEBUG_PUTS("Failed to copy x coord\n");
+    DEBUG_puts("Failed to copy x coord\n");
     goto ecdsa_done;
   }
 
-  ret = mbedtls_ecp_point_read_binary(grp, &ecdsa_ctx->Q, buf, sizeof(buf));
+  ret = mbedtls_ecp_point_read_binary(&ecdsa_ctx->private_grp, &ecdsa_ctx->private_Q, buf, sizeof(buf));
   if (ret)
   {
     mbedtls_strerror(ret, error_str, sizeof(error_str));
     DEBUG_printf("Failed to read binary ECP point: %s\n", error_str);
     goto ecdsa_done;
   }
-  ret = mbedtls_ecp_check_pubkey(&ecdsa_ctx->grp, &ecdsa_ctx->Q);
+  ret = mbedtls_ecp_check_pubkey(&ecdsa_ctx->private_grp, &ecdsa_ctx->private_Q);
   if (ret)
   {
     mbedtls_strerror(ret, error_str, sizeof(error_str));
@@ -2384,13 +2394,13 @@ int mbedtls_ecdsa_import_jwk(mbedtls_ecdsa_context *ecdsa_ctx, cups_json_t *jwk,
 
   if (!verify)
   {
-    ret = mbedtls_mpi_read_base64(d, jwk, "d");
+    ret = mbedtls_mpi_read_base64(&ecdsa_ctx->private_d, jwk, "d");
     if (ret)
     {
       DEBUG_puts("Failed to read d private key\n");
       goto ecdsa_done;
     }
-    ret = mbedtls_ecp_check_privkey(&ecdsa_ctx->grp, &ecdsa_ctx->d);
+    ret = mbedtls_ecp_check_privkey(&ecdsa_ctx->private_grp, &ecdsa_ctx->private_d);
     if (ret)
     {
       mbedtls_strerror(ret, error_str, sizeof(error_str));
@@ -2402,6 +2412,8 @@ int mbedtls_ecdsa_import_jwk(mbedtls_ecdsa_context *ecdsa_ctx, cups_json_t *jwk,
   ecdsa_done:
   mbedtls_mpi_free(&x);
   mbedtls_mpi_free(&y);
+  if (buf)
+    free(buf);
   return ret;
 }
 
@@ -2599,8 +2611,6 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
 #else // HAVE_MBEDTLS
     unsigned char hash[128];		// SHA-256/384/512 hash
     size_t	hash_len;		// Length of hash
-    unsigned	siglen = (unsigned)*sigsize;
-					// Length of signature
     mbedtls_rsa_context rsa;			// RSA public/private key
     mbedtls_rsa_init(&rsa);
 
@@ -2611,7 +2621,7 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
 
       if (!mbedtls_rsa_rsassa_pkcs1_v15_sign(&rsa, mbedtls_ctr_drbg_random, &ctr_drbg, algs[alg - CUPS_JWA_RS256], hash_len, hash, signature))
       {
-        *sigsize = rsa.len;
+        *sigsize = rsa.private_len;
         ret      = true;
       }
       mbedtls_rsa_free(&rsa);
@@ -2701,8 +2711,8 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
 #else // HAVE_MBEDTLS
     unsigned char hash[128];		// SHA-256/384/512 hash
     ssize_t	hash_len;		// Length of hash
-    unsigned	siglen = (unsigned)*sigsize;
-					// Length of signature
+    unsigned	siglen;
+					// Length of signature / 2
     mbedtls_ecdsa_context ecp;			// ECDSA public/private key
     mbedtls_ecdsa_init(&ecp);
     mbedtls_mpi R, S;
@@ -2714,13 +2724,13 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
       hash_len = cupsHashData(cups_jwa_algorithms[alg], text, text_len, hash, sizeof(hash));
       assert(hash_len > 0);
 
-      if (!mbedtls_ecdsa_sign(&ecp.grp, &R, &S, &ecp.d, hash, hash_len, mbedtls_ctr_drbg_random, &ctr_drbg))
+      if (!mbedtls_ecdsa_sign(&ecp.private_grp, &R, &S, &ecp.private_d, hash, hash_len, mbedtls_ctr_drbg_random, &ctr_drbg))
       {
         *sigsize = sig_sizes[alg - CUPS_JWA_ES256];
-        sig_len  = *sigsize / 2;
+        siglen  = *sigsize / 2;
 
         memset(signature, 0, *sigsize);
-        if (!mbedtls_mpi_write_binary(&R, signature, sig_len) && !mbedtls_mpi_write_binary(&S, signature + sig_len, sig_len))
+        if (!mbedtls_mpi_write_binary(&R, signature, siglen) && !mbedtls_mpi_write_binary(&S, signature + siglen, siglen))
           ret = true;
       }
     }

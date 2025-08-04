@@ -72,12 +72,11 @@ static void		usage(void);
 
 
 //
-// 'main()' - Main entry.
+// 'testclient_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testclient_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int			i;		// Looping var
   const char		*opt;		// Current option
@@ -87,11 +86,12 @@ main(int  argc,				// I - Number of command-line arguments
 			hostname[256],  // Hostname
 			resource[256];  // Resource path
   _client_data_t	data;		// Client data
-
+  int			argc = 1;	// Number of command-line arguments
+  char			*argv[] = {"testclient", NULL}; // Command-line arguments
 
   // Parse command-line options...
   if (argc == 1)
-    return (0);
+    return;
 
   memset(&data, 0, sizeof(data));
 
@@ -108,7 +108,7 @@ main(int  argc,				// I - Number of command-line arguments
               {
                 puts("Number of clients can only be specified once.");
                 usage();
-                return (1);
+                return;
               }
 
               i ++;
@@ -116,14 +116,14 @@ main(int  argc,				// I - Number of command-line arguments
               {
                 puts("Expected client count after '-c'.");
                 usage();
-                return (1);
+                return;
               }
 
               if ((num_clients = atoi(argv[i])) < 1)
               {
                 puts("Number of clients must be one or more.");
                 usage();
-                return (1);
+                return;
               }
               break;
 
@@ -132,7 +132,7 @@ main(int  argc,				// I - Number of command-line arguments
               {
                 puts("Document format can only be specified once.");
                 usage();
-                return (1);
+                return;
               }
 
               i ++;
@@ -140,7 +140,7 @@ main(int  argc,				// I - Number of command-line arguments
               {
                 puts("Expected document format after '-d'.");
                 usage();
-                return (1);
+                return;
               }
 
               data.docformat = argv[i];
@@ -151,7 +151,7 @@ main(int  argc,				// I - Number of command-line arguments
               {
                 puts("Print file can only be specified once.");
                 usage();
-                return (1);
+                return;
               }
 
               i ++;
@@ -159,7 +159,7 @@ main(int  argc,				// I - Number of command-line arguments
               {
                 puts("Expected print file after '-f'.");
                 usage();
-                return (1);
+                return;
               }
 
               data.docfile = argv[i];
@@ -180,7 +180,7 @@ main(int  argc,				// I - Number of command-line arguments
           default :
               printf("Unknown option '-%c'.\n", *opt);
               usage();
-              return (1);
+              return;
         }
       }
     }
@@ -188,7 +188,7 @@ main(int  argc,				// I - Number of command-line arguments
     {
       printf("Unknown command-line argument '%s'.\n", argv[i]);
       usage();
-      return (1);
+      return;
     }
     else
       data.uri = argv[i];
@@ -199,7 +199,7 @@ main(int  argc,				// I - Number of command-line arguments
   {
     puts("Expected printer URI.");
     usage();
-    return (1);
+    return;
   }
 
   if (num_clients < 1)
@@ -209,7 +209,7 @@ main(int  argc,				// I - Number of command-line arguments
   if (httpSeparateURI(HTTP_URI_CODING_ALL, data.uri, scheme, sizeof(scheme), userpass, sizeof(userpass), hostname, sizeof(hostname), &data.port, resource, sizeof(resource)) < HTTP_URI_STATUS_OK)
   {
     printf("Bad printer URI '%s'.\n", data.uri);
-    return (1);
+    return;
   }
 
   if (!data.port)
@@ -251,7 +251,7 @@ main(int  argc,				// I - Number of command-line arguments
     sleep(1);
   }
 
-  return (0);
+  return;
 }
 
 

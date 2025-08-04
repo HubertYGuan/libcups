@@ -16,7 +16,7 @@
 #  include <windows.h>
 #else
 #  include <pwd.h>
-#  include <termios.h>
+#  include "termios.h"
 #  include <sys/utsname.h>
 #endif // _WIN32
 #ifdef __APPLE__
@@ -26,6 +26,7 @@
 #  include <dbus/dbus.h>
 #endif // HAVE_DBUS
 
+#define O_NOFOLLOW 0
 
 //
 // Local constants...

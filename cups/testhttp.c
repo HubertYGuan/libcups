@@ -207,12 +207,11 @@ static const char * const base64_tests[][2] =
 
 
 //
-// 'main()' - Main entry.
+// 'testhttp_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testhttp_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		i, j, k;		// Looping vars
   http_t	*http;			// HTTP connection
@@ -237,6 +236,8 @@ main(int  argc,				// I - Number of command-line arguments
   off_t		length, total;		// Length and total bytes
   time_t	start, current;		// Start and end time
   const char	*encoding;		// Negotiated Content-Encoding
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testhttp", NULL}; // Command-line arguments
   static const char * const uri_status_strings[] =
   {					// URI encode/decode status strings
     "HTTP_URI_STATUS_OVERFLOW",
@@ -471,7 +472,7 @@ main(int  argc,				// I - Number of command-line arguments
     else
       testEndMessage(true, "%s", buffer);
 
-    return (failures);
+    return;
   }
   else if (strstr(argv[1], "._tcp"))
   {
@@ -483,7 +484,7 @@ main(int  argc,				// I - Number of command-line arguments
     if (!httpResolveURI(argv[1], resolved, sizeof(resolved), HTTP_RESOLVE_DEFAULT, NULL, NULL))
     {
       testEnd(false);
-      return (1);
+      return;
     }
     else
       testEndMessage(true, "%s", resolved);
@@ -493,17 +494,17 @@ main(int  argc,				// I - Number of command-line arguments
     if (!httpResolveURI(argv[1], resolved, sizeof(resolved), HTTP_RESOLVE_FQDN, NULL, NULL))
     {
       testEnd(false);
-      return (1);
+      return;
     }
     else if (strstr(resolved, ".local:"))
     {
       testEndMessage(false, "%s", resolved);
-      return (1);
+      return;
     }
     else
     {
       testEndMessage(true, "%s", resolved);
-      return (0);
+      return;
     }
   }
   else if (!strcmp(argv[1], "-d") && argc == 3)
@@ -515,10 +516,10 @@ main(int  argc,				// I - Number of command-line arguments
     if (httpDecode64(buffer, &bufsize, argv[2], NULL))
     {
       fwrite(buffer, 1, bufsize, stdout);
-      return (0);
+      return;
     }
 
-    return (1);
+    return;
   }
   else if (!strcmp(argv[1], "-e") && argc == 3)
   {
@@ -526,10 +527,10 @@ main(int  argc,				// I - Number of command-line arguments
     if (httpEncode64(buffer, sizeof(buffer), argv[2], strlen(argv[2]), false))
     {
       puts(buffer);
-      return (0);
+      return;
     }
 
-    return (1);
+    return;
   }
   else if (!strcmp(argv[1], "-E") && argc == 3)
   {
@@ -537,10 +538,10 @@ main(int  argc,				// I - Number of command-line arguments
     if (httpEncode64(buffer, sizeof(buffer), argv[2], strlen(argv[2]), true))
     {
       puts(buffer);
-      return (0);
+      return;
     }
 
-    return (1);
+    return;
   }
   else if (!strcmp(argv[1], "-u") && argc == 3)
   {
@@ -553,7 +554,7 @@ main(int  argc,				// I - Number of command-line arguments
     printf("port       = %d\n", port);
     printf("resource   = \"%s\"\n", resource);
 
-    return (0);
+    return;
   }
 
   // Test HTTP GET requests...
@@ -865,5 +866,5 @@ main(int  argc,				// I - Number of command-line arguments
   if (out != stdout)
     fclose(out);
 
-  return (0);
+  return;
 }

@@ -25,12 +25,11 @@ static void	usage(void);
 
 
 //
-// 'main()' - Generate a test raster file.
+// 'testtestpage_main()' - Generate a test raster file.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testtestpage_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int			i;		// Looping var
   int			ret = 0;	// Exit status
@@ -58,6 +57,8 @@ main(int  argc,				// I - Number of command-line arguments
   cups_page_header_t	back_header;	// Page header (back side)
   pwg_media_t		*pwg;		// Media size
   cups_media_t		media;		// Media information
+  int			argc = 1;	// Number of command-line arguments
+  char			*argv[] = {"testtestpage", NULL}; // Command-line arguments
   static const char * const types[] =	// Raster types
   {
     "black_1",
@@ -87,13 +88,13 @@ main(int  argc,				// I - Number of command-line arguments
       if (!strcmp(argv[i], "--help"))
       {
         usage();
-        return (0);
+        return;
       }
       else if (!strncmp(argv[i], "--", 2))
       {
         fprintf(stderr, "testtestpage: Unknown option '%s'.\n", argv[i]);
         usage();
-        return (1);
+        return;
       }
       else if (argv[i][0] == '-')
       {
@@ -107,14 +108,14 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testtestpage: Expected sheet-back after '-b'.\n", stderr);
                   usage();
-                  return (1);
+                  return;
                 }
 
                 if (strcmp(argv[i], "normal") && strcmp(argv[i], "flip") && strcmp(argv[i], "rotate") && strcmp(argv[i], "manual-tumble"))
                 {
                   fprintf(stderr, "testtestpage: Unexpected sheet-back '-b %s'.\n", argv[i]);
                   usage();
-                  return (1);
+                  return;
                 }
 
                 sheet_back = argv[i];
@@ -126,7 +127,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testtestpage: Expected number of copies after '-c'.\n", stderr);
                   usage();
-                  return (1);
+                  return;
                 }
 
                 num_copies = atoi(argv[i]);
@@ -138,7 +139,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testtestpage: Expected media size name after '-m'.\n", stderr);
                   usage();
-                  return (1);
+                  return;
                 }
 
                 media_name = argv[i];
@@ -150,7 +151,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testtestpage: Expected number of pages after '-p'.\n", stderr);
                   usage();
-                  return (1);
+                  return;
                 }
 
                 num_pages = atoi(argv[i]);
@@ -162,7 +163,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testtestpage: Expected orientation after '-o'.\n", stderr);
                   usage();
-                  return (1);
+                  return;
                 }
 
                 if (!strcmp(argv[i], "portrait"))
@@ -177,7 +178,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fprintf(stderr, "testtestpage: Unexpected orientation '-o %s'.\n", argv[i]);
                   usage();
-                  return (1);
+                  return;
                 }
                 break;
 
@@ -187,7 +188,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testtestpage: Expected resolution after '-r'.\n", stderr);
                   usage();
-                  return (1);
+                  return;
                 }
 
                 switch (sscanf(argv[i], "%dx%d", &xres, &yres))
@@ -195,7 +196,7 @@ main(int  argc,				// I - Number of command-line arguments
                   case 0 :
                       fprintf(stderr, "testtestpage: Unexpected resolution '-r %s'.\n", argv[i]);
 		      usage();
-		      return (1);
+		      return;
 		  case 1 :
 		      yres = xres;
 		      break;
@@ -208,14 +209,14 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testtestpage: Expected sides after '-s'.\n", stderr);
                   usage();
-                  return (1);
+                  return;
                 }
 
                 if (strcmp(argv[i], "one-sided") && strcmp(argv[i], "two-sided-long-edge") && strcmp(argv[i], "two-sided-short-edge"))
                 {
                   fprintf(stderr, "testtestpage: Unexpected sides '-s %s'.\n", argv[i]);
                   usage();
-                  return (1);
+                  return;
                 }
 
                 sides = argv[i];
@@ -227,7 +228,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testtestpage: Expected type after '-t'.\n", stderr);
                   usage();
-                  return (1);
+                  return;
                 }
 
 		if (!strcmp(argv[i], "color"))
@@ -238,7 +239,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fprintf(stderr, "testtestpage: Unexpected sheet-back '-b %s'.\n", argv[i]);
                   usage();
-                  return (1);
+                  return;
                 }
                 else
                   type = argv[i];
@@ -247,7 +248,7 @@ main(int  argc,				// I - Number of command-line arguments
             default :
                 fprintf(stderr, "testtestpage: Unknown option '-%c'.\n", *opt);
                 usage();
-                return (1);
+                return;
           }
         }
       }
@@ -259,13 +260,13 @@ main(int  argc,				// I - Number of command-line arguments
       {
         fprintf(stderr, "testtestpage: Unknown option '%s'.\n", argv[i]);
         usage();
-        return (1);
+        return;
       }
 
       if ((pwg = pwgMediaForPWG(media_name)) == NULL)
       {
         fprintf(stderr, "testtestpage: Unable to lookup media '%s'.\n", media_name);
-        return (1);
+        return;
       }
 
       if (filename)
@@ -273,7 +274,7 @@ main(int  argc,				// I - Number of command-line arguments
         if ((fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0)
         {
           fprintf(stderr, "testtestpage: Unable to create '%s': %s\n", filename, strerror(errno));
-          return (1);
+          return;
         }
       }
       else
@@ -283,7 +284,7 @@ main(int  argc,				// I - Number of command-line arguments
       {
 	fprintf(stderr, "testtestpage: Unable to open raster stream for '%s': %s\n", filename ? filename : "(stdout)", cupsGetErrorString());
 	close(fd);
-	return (1);
+	return;
       }
 
       memset(&media, 0, sizeof(media));
@@ -304,7 +305,7 @@ main(int  argc,				// I - Number of command-line arguments
     if ((fd = open("test.pwg", O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0)
     {
       testEndMessage(false, "%s", strerror(errno));
-      return (1);
+      return;
     }
     testEnd(true);
 
@@ -313,7 +314,7 @@ main(int  argc,				// I - Number of command-line arguments
     {
       testEndMessage(false, "%s", cupsRasterGetErrorString());
       close(fd);
-      return (1);
+      return;
     }
     testEnd(true);
 
@@ -418,7 +419,7 @@ main(int  argc,				// I - Number of command-line arguments
     cupsRasterClose(ras);
   }
 
-  return (ret);
+  return;
 }
 
 

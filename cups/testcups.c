@@ -25,12 +25,11 @@ static void	show_diffs(cups_dest_t *a, cups_dest_t *b);
 
 
 //
-// 'main()' - Main entry.
+// 'testcups_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testcups_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   unsigned	numbers[100];		// Random numbers
   http_t	*http,			// First HTTP connection
@@ -43,6 +42,8 @@ main(int  argc,				// I - Number of command-line arguments
 		*named_dest;		// Current named destination
   const char	*dest_name,		// Destination name
 		*dval;			// Destination value
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testcups", NULL}; // Command-line arguments
 #if 0
   int		num_jobs;		// Number of jobs for queue
   cups_job_t	*jobs;			// Jobs for queue
@@ -181,25 +182,25 @@ main(int  argc,				// I - Number of command-line arguments
       if ((dest = cupsGetNamedDest(CUPS_HTTP_DEFAULT, argv[2], NULL)) == NULL)
       {
         printf("Unable to find printer '%s': %s\n", argv[2], cupsGetErrorString());
-        return (1);
+        return;
       }
 
       if ((dinfo = cupsCopyDestInfo(CUPS_HTTP_DEFAULT, dest, CUPS_DEST_FLAGS_NONE)) == NULL)
       {
         printf("Unable to get information about printer '%s': %s\n", argv[2], cupsGetErrorString());
-        return (1);
+        return;
       }
 
       if ((fp = cupsFileOpen(argv[3], "r")) == NULL)
       {
 	printf("Unable to open \"%s\": %s\n", argv[3], strerror(errno));
-	return (1);
+	return;
       }
 
       if (cupsCreateDestJob(CUPS_HTTP_DEFAULT, dest, dinfo, &job_id, "testcups", 0, NULL) > IPP_STATUS_OK_CONFLICTING)
       {
 	printf("Unable to create print job on '%s': %s\n", argv[2], cupsGetErrorString());
-	return (1);
+	return;
       }
 
       interval = atoi(argv[4]);
@@ -207,7 +208,7 @@ main(int  argc,				// I - Number of command-line arguments
       if (cupsStartDestDocument(CUPS_HTTP_DEFAULT, dest, dinfo, job_id, argv[3], CUPS_FORMAT_AUTO, 0, NULL, true) != HTTP_STATUS_CONTINUE)
       {
 	puts("Unable to start document!");
-	return (1);
+	return;
       }
 
       while ((bytes = cupsFileRead(fp, buffer, sizeof(buffer))) > 0)
@@ -217,7 +218,7 @@ main(int  argc,				// I - Number of command-line arguments
 	if (cupsWriteRequestData(CUPS_HTTP_DEFAULT, buffer, (size_t)bytes) != HTTP_STATUS_CONTINUE)
 	{
 	  puts("Unable to write bytes!");
-	  return (1);
+	  return;
 	}
 
         if (interval > 0)
@@ -229,7 +230,7 @@ main(int  argc,				// I - Number of command-line arguments
       if (cupsFinishDestDocument(CUPS_HTTP_DEFAULT, dest, dinfo) > IPP_STATUS_OK_IGNORED_OR_SUBSTITUTED)
       {
 	puts("Unable to finish document!");
-	return (1);
+	return;
       }
     }
     else
@@ -253,10 +254,10 @@ main(int  argc,				// I - Number of command-line arguments
       puts("Print a file (interval controls delay between buffers in seconds):");
       puts("");
       puts("    ./testcups print printer file interval");
-      return (1);
+      return;
     }
 
-    return (0);
+    return;
   }
 
   //
@@ -294,7 +295,7 @@ main(int  argc,				// I - Number of command-line arguments
   else
   {
     testEndMessage(false, "different connections");
-    return (1);
+    return;
   }
 
   //
@@ -479,8 +480,6 @@ main(int  argc,				// I - Number of command-line arguments
   cupsFreeJobs(num_jobs, jobs);
   cupsFreeDests(num_dests, dests);
 #endif // 0
-
-  return (status);
 }
 
 

@@ -48,21 +48,22 @@ typedef struct _ippdata_t		// Data
 
 void	fuzz_data(_ippdata_t *data);
 int	wait_child(int pid, const char *filename);
-ssize_t	write_cb(_ippdata_t *data, ipp_uchar_t *buffer, size_t bytes);
+static ssize_t	write_cb(_ippdata_t *data, ipp_uchar_t *buffer, size_t bytes);
 
 
 //
-// 'main()' - Main entry.
+// 'fuzzipp_main()' - Main entry.
 //
 
-int				// O - Exit status
-main(int  argc,			// I - Number of command-line arguments
-     char *argv[])		// I - Command-line arguments
+void				// O - Exit status
+fuzzipp_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		status = 0;	// Exit status
   ipp_state_t	state;		// State
   cups_file_t	*fp;		// File pointer
   ipp_t		*request;	// Request
+  int		argc = 1;	// Number of command-line arguments
+  char		*argv[] = {"fuzzipp", NULL}; // Command-line arguments
 
 
   if (argc == 1)
@@ -79,7 +80,7 @@ main(int  argc,			// I - Number of command-line arguments
     ipp_t	*media_col,	// media-col collection
 		*media_size;	// media-size collection
     _ippdata_t	data;		// IPP buffer
-    ipp_uchar_t	buffer[262144];	// Write buffer data
+    ipp_uchar_t	buffer[32768];	// Write buffer data
 
     request = ippNewRequest(IPP_OP_PRINT_JOB);
 
@@ -128,7 +129,7 @@ main(int  argc,			// I - Number of command-line arguments
     if (state != IPP_STATE_DATA)
     {
       testEndMessage(false, "Failed to create base IPP message.");
-      return (1);
+      return;
     }
 
     ippDelete(request);
@@ -200,7 +201,7 @@ main(int  argc,			// I - Number of command-line arguments
     if ((fp = cupsFileOpen(argv[1], "r")) == NULL)
     {
       perror(argv[1]);
-      return (1);
+      return;
     }
 
     request = ippNew();
@@ -225,8 +226,6 @@ main(int  argc,			// I - Number of command-line arguments
     cupsFileClose(fp);
     ippDelete(request);
   }
-
-  return (status);
 }
 
 
@@ -340,10 +339,10 @@ wait_child(int        pid,		// I - Child process ID
 
 
 //
-// 'write_cb()' - Write data into a buffer.
+// 'write_cb()' - Write data into a buff>r.
 //
 
-ssize_t					// O - Number of bytes written
+static ssize_t					// O - Number of bytes written
 write_cb(_ippdata_t   *data,		// I - Data
          ipp_uchar_t *buffer,		// I - Buffer to write
 	 size_t      bytes)		// I - Number of bytes to write

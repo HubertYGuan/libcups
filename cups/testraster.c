@@ -24,14 +24,15 @@ static void	print_changes(cups_page_header_t *header, cups_page_header_t *expect
 
 
 //
-// 'main()' - Test the raster functions.
+// 'testraster_main()' - Test the raster functions.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line args
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testraster_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int	errors = 0;			// Number of errors
+  int	argc = 1;			// Number of command-line args
+  char	*argv[] = {"testraster", NULL}; // Command-line arguments
 
 
   if (argc == 1)
@@ -48,8 +49,6 @@ main(int  argc,				// I - Number of command-line args
     for (i = 1; i < argc; i ++)
       errors += do_ras_file(argv[i]);
   }
-
-  return (errors);
 }
 
 

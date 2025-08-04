@@ -13,12 +13,11 @@
 
 
 //
-// 'main()' - Test option processing functions.
+// 'testoptions_main()' - Test option processing functions.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testoptions_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		status = 0;		// Exit status
   size_t	num_options;		// Number of options
@@ -27,6 +26,8 @@ main(int  argc,				// I - Number of command-line arguments
   ipp_t		*request;		// IPP request
   ipp_attribute_t *attr;		// IPP attribute
   size_t	count;			// Number of attributes
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testoptions", NULL}; // Command-line arguments
 
 
   if (argc == 1)

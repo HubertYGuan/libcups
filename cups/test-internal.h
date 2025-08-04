@@ -40,7 +40,7 @@
 #  ifdef __cplusplus
 extern "C" {
 #  endif // __cplusplus
-
+#  include "zephyr-compat.h"
 
 //
 // This header implements a simple unit test framework for C/C++ programs.

@@ -383,10 +383,12 @@ addr->un.sun_path, strerror(errno));
   }
 
   // Close on exec...
+#ifdef FD_CLOEXEC
 #ifndef _WIN32
   if (fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC))
     DEBUG_printf("2httpAddrListen: fcntl(F_SETFD, FD_CLOEXEC) failed: %s", strerror(errno));
 #endif // !_WIN32
+#endif // FD_CLOEXEC
 
 #ifdef SO_NOSIGPIPE
   // Disable SIGPIPE for this socket.
@@ -537,12 +539,11 @@ httpGetHostname(http_t *http,		// I - HTTP connection or NULL
 
 #else
       // The hostname is not a FQDN, so look it up...
-      struct hostent	*host;		// Host entry to get FQDN
-
-      if ((host = gethostbyname(s)) != NULL && host->h_name)
+      struct addrinfo *addrs;  // addr info entry to get FQDN
+      if (!getaddrinfo(s, "80", NULL, &addrs) && addrs->ai_canonname)
       {
         // Use the resolved hostname...
-	cupsCopyString(s, host->h_name, (size_t)slen);
+	cupsCopyString(s, addrs->ai_canonname, (size_t)slen);
       }
 #endif // HAVE_SCDYNAMICSTORECOPYCOMPUTERNAME
     }

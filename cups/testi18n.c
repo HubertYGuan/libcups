@@ -102,12 +102,11 @@ static void	print_utf8(const char *msg, const char *src);
 
 
 //
-// 'main()' - Main entry for internationalization test module.
+// 'testi18n_main()' - Main entry for internationalization test module.
 //
 
-int					// O - Exit code
-main(int  argc,				// I - Argument Count
-     char *argv[])			// I - Arguments
+void					// O - Exit code
+testi18n_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   FILE		*fp;			// File pointer
   int		count;			// File line counter
@@ -135,6 +134,8 @@ main(int  argc,				// I - Argument Count
     // "A != <CJK U+4E42>." - use Windows 950 (Big5) or EUC-TW
   char		utf8dest[1024];		// UTF-8 destination string
   cups_utf32_t	utf32dest[1024];	// UTF-32 destination string
+  int		argc = 1;		// Argument Count
+  char		*argv[] = {"testi18n", NULL}; // Arguments
 
 
   if (argc > 1)
@@ -145,13 +146,13 @@ main(int  argc,				// I - Argument Count
     if (argc != 3)
     {
       puts("Usage: ./testi18n [filename charset]");
-      return (1);
+      return;
     }
 
     if ((fp = fopen(argv[1], "rb")) == NULL)
     {
       perror(argv[1]);
-      return (1);
+      return;
     }
 
     for (i = 0, encoding = CUPS_ENCODING_AUTO;
@@ -168,7 +169,7 @@ main(int  argc,				// I - Argument Count
     if (encoding == CUPS_ENCODING_AUTO)
     {
       fprintf(stderr, "%s: Unknown character set!\n", argv[2]);
-      return (1);
+      return;
     }
 
     while (fgets(line, sizeof(line), fp))
@@ -176,14 +177,14 @@ main(int  argc,				// I - Argument Count
       if (cupsCharsetToUTF8(utf8dest, line, sizeof(utf8dest), encoding) < 0)
       {
         fprintf(stderr, "%s: Unable to convert line: %s", argv[1], line);
-	return (1);
+	return;
       }
 
       fputs((char *)utf8dest, stdout);
     }
 
     fclose(fp);
-    return (0);
+    return;
   }
 
   // Start with some conversion tests from a UTF-8 test file.
@@ -192,7 +193,7 @@ main(int  argc,				// I - Argument Count
   if ((fp = fopen("utf8demo.txt", "rb")) == NULL)
   {
     perror("utf8demo.txt");
-    return (1);
+    return;
   }
 
   // cupsUTF8ToUTF32
@@ -497,7 +498,7 @@ main(int  argc,				// I - Argument Count
   else
     testEnd(true);
 
-  return (errors > 0);
+  return;
 }
 
 

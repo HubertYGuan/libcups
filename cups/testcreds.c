@@ -71,12 +71,11 @@ static int	usage(FILE *fp);
 
 
 //
-// 'main()' - Main entry.
+// 'testcreds_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testcreds_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		i;			// Looping var
   const char	*subcommand = NULL,	// Sub-command
@@ -98,19 +97,22 @@ main(int  argc,				// I - Number of command-line arguments
 					// Certificate type
   cups_credusage_t keyusage = CUPS_CREDUSAGE_DEFAULT_TLS;
 					// Key usage
-
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testcreds", NULL}; // Command-line arguments
 
   // Check command-line...
   for (i = 1; i < argc; i ++)
   {
     if (!strcmp(argv[i], "--help"))
     {
-      return (usage(stdout));
+      usage(stdout);
+      return;
     }
     else if (!strncmp(argv[i], "--", 2))
     {
       fprintf(stderr, "testcreds: Unknown option '%s'.\n", argv[i]);
-      return (usage(stderr));
+      usage(stderr);
+      return;
     }
     else if (argv[i][0] == '-')
     {
@@ -123,7 +125,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing country after '-C'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      country = argv[i];
 	      break;
@@ -133,7 +136,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing locality/city/town after '-L'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      locality = argv[i];
 	      break;
@@ -143,7 +147,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing organization after '-O'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      organization = argv[i];
 	      break;
@@ -153,7 +158,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing CSR filename after '-R'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      csrfile = argv[i];
 	      break;
@@ -163,7 +169,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing state/province after '-S'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      state = argv[i];
 	      break;
@@ -173,7 +180,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing organizational unit after '-U'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      org_unit = argv[i];
 	      break;
@@ -188,7 +196,7 @@ main(int  argc,				// I - Number of command-line arguments
 	      if (num_alt_names >= (sizeof(alt_names) / sizeof(alt_names[0])))
 	      {
 	        fputs("testcreds: Too many subjectAltName values.\n", stderr);
-	        return (1);
+	        return;
 	      }
 	      alt_names[num_alt_names ++] = argv[i];
 	      break;
@@ -198,12 +206,13 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing expiration days after '-d'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      if ((days = atoi(argv[i])) <= 0)
 	      {
 	        fprintf(stderr, "testcreds: Bad DAYS value '%s' after '-d'.\n", argv[i]);
-	        return (1);
+	        return;
 	      }
 	      break;
 
@@ -212,7 +221,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing purpose after '-p'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      purpose = 0;
 	      if (strstr(argv[i], "serverAuth"))
@@ -230,7 +240,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (purpose == 0)
               {
                 fprintf(stderr, "testcreds: Bad purpose '%s'.\n", argv[i]);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      break;
 
@@ -239,7 +250,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing root name after '-r'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      root_name = argv[i];
 	      break;
@@ -249,7 +261,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testcreds: Missing certificate type after '-t'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
 	      }
 	      if (!strcmp(argv[i], "default"))
 	      {
@@ -282,7 +295,8 @@ main(int  argc,				// I - Number of command-line arguments
 	      else
 	      {
 	        fprintf(stderr, "testcreds: Bad certificate type '%s'.\n", argv[i]);
-	        return (usage(stderr));
+	        usage(stderr);
+          return;
 	      }
 	      break;
 
@@ -325,8 +339,9 @@ main(int  argc,				// I - Number of command-line arguments
 
           default :
               fprintf(stderr, "testcreds: Unknown option '-%c'.\n", *opt);
-              return (usage(stderr));
-	}
+              usage(stderr);
+              return;
+        }
       }
     }
     else if (!subcommand)
@@ -340,7 +355,8 @@ main(int  argc,				// I - Number of command-line arguments
     else
     {
       fprintf(stderr, "testcreds: Unknown option '%s'.\n", argv[i]);
-      return (usage(stderr));
+      usage(stderr);
+      return;
     }
   }
 
@@ -351,42 +367,44 @@ main(int  argc,				// I - Number of command-line arguments
   // Do unit tests or sub-command...
   if (!subcommand)
   {
-    return (do_unit_tests());
+    do_unit_tests();
+    return;
   }
   else if (!arg)
   {
     fputs("testcreds: Missing sub-command argument.\n", stderr);
-    return (usage(stderr));
+    usage(stderr);
+    return;
   }
 
   // Run the corresponding sub-command...
   if (!strcmp(subcommand, "ca"))
   {
-    return (test_ca(arg, csrfile, root_name, days));
+    test_ca(arg, csrfile, root_name, days);
   }
   else if (!strcmp(subcommand, "cacert"))
   {
-    return (test_cert(true, purpose, type, keyusage, organization, org_unit, locality, state, country, root_name, arg, num_alt_names, alt_names, days));
+    test_cert(true, purpose, type, keyusage, organization, org_unit, locality, state, country, root_name, arg, num_alt_names, alt_names, days);
   }
   else if (!strcmp(subcommand, "cert"))
   {
-    return (test_cert(false, purpose, type, keyusage, organization, org_unit, locality, state, country, root_name, arg, num_alt_names, alt_names, days));
+    test_cert(false, purpose, type, keyusage, organization, org_unit, locality, state, country, root_name, arg, num_alt_names, alt_names, days);
   }
   else if (!strcmp(subcommand, "client"))
   {
-    return (test_client(arg));
+    test_client(arg);
   }
   else if (!strcmp(subcommand, "csr"))
   {
-    return (test_csr(purpose, type, keyusage, organization, org_unit, locality, state, country, arg, num_alt_names, alt_names));
+    test_csr(purpose, type, keyusage, organization, org_unit, locality, state, country, arg, num_alt_names, alt_names);
   }
   else if (!strcmp(subcommand, "server"))
   {
-    return (test_server(arg));
+    test_server(arg);
   }
   else if (!strcmp(subcommand, "show"))
   {
-    return (test_show(arg));
+    test_show(arg);
   }
   else
   {

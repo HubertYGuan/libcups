@@ -19,17 +19,18 @@ static void	usage(FILE *fp);
 
 
 //
-// 'main()' - Main entry.
+// 'testhash_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testhash_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		i;			// Looping var
   unsigned char	hash[64];		// Hash value
   ssize_t	hashsize;		// Size of hash
   char		hex[256];		// Hex string for hash
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testhash", NULL}; // Command-line arguments
 
 
   if (argc == 1)
@@ -70,7 +71,7 @@ main(int  argc,				// I - Number of command-line arguments
     }
 
     if (!testsPassed)
-      return (1);
+      return;
   }
   else
   {
@@ -84,13 +85,13 @@ main(int  argc,				// I - Number of command-line arguments
       if (!strcmp(argv[i], "--help"))
       {
         usage(stdout);
-        return (0);
+        return;
       }
       else if (!strncmp(argv[i], "--", 2))
       {
         fprintf(stderr, "testhash: Unknown option '%s'.\n", argv[i]);
         usage(stderr);
-        return (1);
+        return;
       }
       else if (argv[i][0] == '-')
       {
@@ -104,7 +105,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testhash: Missing algorithm after '-a'.\n", stderr);
                   usage(stderr);
-                  return (1);
+                  return;
                 }
 
                 algorithm = argv[i];
@@ -116,7 +117,7 @@ main(int  argc,				// I - Number of command-line arguments
                 {
                   fputs("testhash: Missing key after '-k'.\n", stderr);
                   usage(stderr);
-                  return (1);
+                  return;
                 }
 
                 key = argv[i];
@@ -125,7 +126,7 @@ main(int  argc,				// I - Number of command-line arguments
             default :
                 fprintf(stderr, "testhash: Unknown option '-%c'.\n", *opt);
                 usage(stderr);
-                return (1);
+                return;
           }
         }
       }
@@ -133,7 +134,7 @@ main(int  argc,				// I - Number of command-line arguments
       {
         fputs("testhash: Missing algorithm.\n", stderr);
         usage(stderr);
-        return (1);
+        return;
       }
       else
       {
@@ -146,15 +147,13 @@ main(int  argc,				// I - Number of command-line arguments
         if (hashsize < 0)
         {
           fprintf(stderr, "'%s': %s\n", argv[i], cupsGetErrorString());
-	  return (1);
+	  return;
 	}
 
         printf("'%s': %s\n", argv[i], cupsHashString(hash, (size_t)hashsize, hex, sizeof(hex)));
       }
     }
   }
-
-  return (0);
 }
 
 

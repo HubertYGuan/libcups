@@ -20,12 +20,11 @@ static void	usage(FILE *fp) _CUPS_NORETURN;
 
 
 //
-// 'main()' - Main entry.
+// 'tlscheck_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+tlscheck_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		i;			// Looping var
   http_t	*http = NULL;		// HTTP connection
@@ -50,6 +49,8 @@ main(int  argc,				// I - Number of command-line arguments
   ipp_attribute_t *attr;		// Current attribute
   const char	*name;			// Attribute name
   char		value[1024];		// Attribute (string) value
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"tlscheck", NULL}; // Command-line arguments
   static const char * const pattrs[] =	// Requested attributes
   {
     "color-supported",

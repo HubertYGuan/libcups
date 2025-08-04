@@ -50,12 +50,11 @@ static int	usage(FILE *out);
 
 
 //
-// 'main()' - Main entry.
+// 'testoauth_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testoauth_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		i;			// Looping var
   const char	*opt,			// Current option
@@ -63,6 +62,8 @@ main(int  argc,				// I - Number of command-line arguments
 		*command = NULL,	// Command
 		*redirect_uri = NULL,	// Redirection URI
 		*scopes = NULL;		// Scopes
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testoauth", NULL}; // Command-line arguments
 
 
   // Parse the command-line...
@@ -70,7 +71,8 @@ main(int  argc,				// I - Number of command-line arguments
   {
     if (!strcmp(argv[i], "--help"))
     {
-      return (usage(stdout));
+      usage(stdout);
+      return;
     }
     else if (argv[i][0] == '-' && argv[i][1] != '-')
     {
@@ -83,7 +85,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testoauth: Missing Authorization Server URI after '-a'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
               }
 
               oauth_uri = argv[i];
@@ -94,7 +97,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testoauth: Missing redirect URI after '-r'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
               }
 
               redirect_uri = argv[i];
@@ -105,7 +109,8 @@ main(int  argc,				// I - Number of command-line arguments
               if (i >= argc)
               {
                 fputs("testoauth: Missing scope(s) after '-s'.\n", stderr);
-                return (usage(stderr));
+                usage(stderr);
+                return;
               }
 
               scopes = argv[i];
@@ -113,7 +118,8 @@ main(int  argc,				// I - Number of command-line arguments
 
           default :
               fprintf(stderr, "testoauth: Unknown option '-%c'.\n", *opt);
-              return (usage(stderr));
+              usage(stderr);
+              return;
         }
       }
     }
@@ -126,7 +132,8 @@ main(int  argc,				// I - Number of command-line arguments
     else
     {
       fprintf(stderr, "testoauth: Unknown option '%s'.\n", argv[i]);
-      return (usage(stderr));
+      usage(stderr);
+      return;
     }
   }
 
@@ -143,71 +150,86 @@ main(int  argc,				// I - Number of command-line arguments
     if (i >= argc)
     {
       fputs("testoauth: Missing resource URI.\n", stderr);
-      return (usage(stderr));
+      usage(stderr);
+      return;
     }
 
-    return (authorize(oauth_uri, scopes, argv[i], redirect_uri));
+    authorize(oauth_uri, scopes, argv[i], redirect_uri);
+    return;
   }
   else if (!strcmp(command, "clear"))
   {
     if (i >= argc)
     {
       fputs("testoauth: Missing resource URI.\n", stderr);
-      return (usage(stderr));
+      usage(stderr);
+      return;
     }
 
-    return (clear(oauth_uri, argv[i]));
+    clear(oauth_uri, argv[i]);
+    return;
   }
   else if (!strcmp(command, "get-access-token"))
   {
     if (i >= argc)
     {
       fputs("testoauth: Missing resource URI.\n", stderr);
-      return (usage(stderr));
+      usage(stderr);
+      return;
     }
 
-    return (get_access_token(oauth_uri, argv[i]));
+    get_access_token(oauth_uri, argv[i]);
+    return;
   }
   else if (!strcmp(command, "get-client-id"))
   {
-    return (get_client_id(oauth_uri, redirect_uri));
+    get_client_id(oauth_uri, redirect_uri);
+    return;
   }
   else if (!strcmp(command, "get-metadata"))
   {
-    return (get_metadata(oauth_uri));
+    get_metadata(oauth_uri);
+    return;
   }
   else if (!strcmp(command, "get-refresh-token"))
   {
     if (i >= argc)
     {
       fputs("testoauth: Missing resource URI.\n", stderr);
-      return (usage(stderr));
+      usage(stderr);
+      return;
     }
 
-    return (get_refresh_token(oauth_uri, argv[i]));
+    get_refresh_token(oauth_uri, argv[i]);
+    return;
   }
   else if (!strcmp(command, "get-user-id"))
   {
-    return (get_user_id(oauth_uri, argv[i]));
+    get_user_id(oauth_uri, argv[i]);
+    return;
   }
   else if (!strcmp(command, "set-client-data"))
   {
     if ((i + 1) >= argc)
     {
       fputs("testoauth: Missing client_id and/or client_secret.\n", stderr);
-      return (usage(stderr));
+      usage(stderr);
+      return;
     }
 
-    return (set_client_data(oauth_uri, redirect_uri, argv[i], argv[i + 1]));
+    set_client_data(oauth_uri, redirect_uri, argv[i], argv[i + 1]);
+    return;
   }
   else if (!strcmp(command, "test"))
   {
-    return (unit_tests(oauth_uri, redirect_uri));
+    unit_tests(oauth_uri, redirect_uri);
+    return;
   }
   else
   {
     fprintf(stderr, "testoauth: Unknown command '%s'.\n", command);
-    return (usage(stderr));
+    usage(stderr);
+    return;
   }
 }
 

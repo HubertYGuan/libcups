@@ -13,11 +13,11 @@
 
 
 //
-// 'main()' - Main entry for clock tests.
+// 'testclock_main()' - Main entry for clock tests.
 //
 
-int					// O - Exit status
-main(void)
+void					// O - Exit status
+testclock_main(void *p1, void *p2, void *p3)
 {
   double	current;		// Current time
 
@@ -83,6 +83,4 @@ main(void)
     testEndMessage(true, "%g", current);
   else
     testEndMessage(false, "got %g, expected 120.0 +/- 2.0", current);
-
-  return (testsPassed ? 0 : 1);
 }

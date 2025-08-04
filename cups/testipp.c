@@ -289,16 +289,15 @@ ssize_t	read_cb(_ippdata_t *data, ipp_uchar_t *buffer, size_t bytes);
 ssize_t	read_hex(cups_file_t *fp, ipp_uchar_t *buffer, size_t bytes);
 int	test_file(const char *color);
 bool	token_cb(ipp_file_t *f, void *user_data, const char *token);
-ssize_t	write_cb(_ippdata_t *data, ipp_uchar_t *buffer, size_t bytes);
+static ssize_t	write_cb(_ippdata_t *data, ipp_uchar_t *buffer, size_t bytes);
 
 
 //
-// 'main()' - Main entry.
+// 'testipp_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testipp_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   ipp_file_t	*file;			// IPP data file
   _ippdata_t	data;			// IPP buffer
@@ -316,6 +315,8 @@ main(int  argc,				// I - Number of command-line arguments
   int		status = 0;		// Status of tests (0 = success, 1 = fail)
   time_t	tv;			// Time value
   const ipp_uchar_t *dv;		// Date value
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testipp", NULL}; // Command-line arguments
 #ifdef DEBUG
   const char	*name;			// Option name
 #endif // DEBUG
@@ -869,7 +870,6 @@ main(int  argc,				// I - Number of command-line arguments
     }
   }
 
-  return (status);
 }
 
 
@@ -1207,7 +1207,7 @@ token_cb(ipp_file_t *f,			// I - IPP file data
 // 'write_cb()' - Write data into a buffer.
 //
 
-ssize_t					// O - Number of bytes written
+static ssize_t					// O - Number of bytes written
 write_cb(_ippdata_t   *data,		// I - Data
          ipp_uchar_t *buffer,		// I - Buffer to write
 	 size_t      bytes)		// I - Number of bytes to write

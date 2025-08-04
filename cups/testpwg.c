@@ -14,17 +14,18 @@
 
 
 //
-// 'main()' - Main entry.
+// 'testpwg_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line args
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testpwg_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   const pwg_media_t *pwg;		// PWG media size
   size_t	i,			// Looping var
 		num_media;		// Number of media sizes
   const pwg_media_t *mediatable;	// Media size table
+  int		argc = 1;		// Number of command-line args
+  char		*argv[] = {"testpwg", NULL}; // Command-line arguments
 
 
   if (argc > 1)
@@ -47,7 +48,7 @@ main(int  argc,				// I - Number of command-line args
         printf("%s = BAD\n", argv[j]);
     }
 
-    return (0);
+    return;
   }
 
   testBegin("pwgMediaForPWG(\"iso_a4_210x297mm\")");
@@ -159,5 +160,5 @@ main(int  argc,				// I - Number of command-line args
   if (num_media == 1)
     testEnd(true);
 
-  return (testsPassed ? 0 : 1);
+  return;
 }

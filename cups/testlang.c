@@ -30,12 +30,11 @@ static void	usage(void);
 
 
 //
-// 'main()' - Load the specified language and show the strings for yes and no.
+// 'testlang_main()' - Load the specified language and show the strings for yes and no.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testlang_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		i;			// Looping var
   const char	*opt;			// Current option
@@ -43,6 +42,8 @@ main(int  argc,				// I - Number of command-line arguments
   int		dotests = 1;		// Do standard tests?
   const char	*lang = NULL;		// Single language test?
   cups_lang_t	*language = NULL;	// Message catalog
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testlang", NULL}; // Command-line arguments
 
 
   // Parse command-line...
@@ -67,7 +68,7 @@ main(int  argc,				// I - Number of command-line arguments
                 if (i >= argc)
                 {
                   usage();
-                  return (1);
+                  return;
                 }
 
                 lang = argv[i];
@@ -75,7 +76,7 @@ main(int  argc,				// I - Number of command-line arguments
 
             default :
                 usage();
-                return (1);
+                return;
 	  }
         }
       }
@@ -133,7 +134,7 @@ main(int  argc,				// I - Number of command-line arguments
       puts("ALL TESTS PASSED");
   }
 
-  return (errors > 0);
+  return;
 }
 
 

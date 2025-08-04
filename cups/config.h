@@ -165,7 +165,7 @@
 // Do we have res_init()?
 //
 
-#define HAVE_RES_INIT 1
+#undef HAVE_RES_INIT
 
 
 //

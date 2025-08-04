@@ -578,10 +578,13 @@ cupsFileLock(cups_file_t *fp,		// I - CUPS file
 #ifdef _WIN32
   return (_locking(fp->fd, block ? _LK_LOCK : _LK_NBLCK, 0) == 0);
 #else
+#  ifdef lockf
   return (lockf(fp->fd, block ? F_LOCK : F_TLOCK, 0) == 0);
+#  else
+  return false;
+#  endif // lockf
 #endif // _WIN32
 }
-
 
 //
 // 'cupsFileNumber()' - Return the file descriptor associated with a CUPS file.
@@ -810,11 +813,12 @@ cupsFileOpenFd(int        fd,		// I - File descriptor
   }
 
   // Don't pass this file to child processes...
+#ifdef FD_CLOEXEC
 #ifndef _WIN32
   if (fcntl(fp->fd, F_SETFD, fcntl(fp->fd, F_GETFD) | FD_CLOEXEC))
     DEBUG_printf("cupsFileOpenFd: fcntl(F_SETFD, FD_CLOEXEC) failed - %s", strerror(errno));
 #endif // !_WIN32
-
+#endif // FD_CLOEXEC
   return (fp);
 }
 
@@ -1400,7 +1404,11 @@ cupsFileUnlock(cups_file_t *fp)		// I - CUPS file
 #ifdef _WIN32
   return (_locking(fp->fd, _LK_UNLCK, 0) == 0);
 #else
+#  ifdef lockf
   return (lockf(fp->fd, F_ULOCK, 0) == 0);
+#  else
+  return false; // File locking is not supported
+#  endif // lockf
 #endif // _WIN32
 }
 
@@ -1814,7 +1822,7 @@ cups_open(const char *filename,		// I - Filename
 
 #ifndef _WIN32
   // Then use lstat to determine whether the filename is a symlink...
-  if (lstat(filename, &linkinfo))
+  if (stat(filename, &linkinfo))
   {
     close(fd);
     return (-1);

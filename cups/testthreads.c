@@ -24,19 +24,19 @@ static void	show_supported(http_t *http, cups_dest_t *dest, cups_dinfo_t *dinfo,
 
 
 //
-// 'main()' - Main entry.
+// 'testthreads_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testthreads_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testthreads", NULL}; // Command-line arguments
+
   // Go through all the available destinations to find the requested one...
   (void)argc;
 
   cupsEnumDests(CUPS_DEST_FLAGS_NONE, -1, NULL, 0, 0, enum_dests_cb, argv[1]);
-
-  return (0);
 }
 
 

@@ -31,7 +31,7 @@ extern "C" {
 typedef int mode_t;			// Windows doesn't support mode_t type @private@
 #  endif // _WIN32
 #  include <regex.h>
-
+#  include "zephyr-compat.h"
 
 //
 // Macro for localized text...

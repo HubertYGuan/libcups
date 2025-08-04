@@ -13,17 +13,18 @@
 
 
 //
-// 'main()' - Main entry.
+// 'testjwt_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		i;			// Looping var
   cups_jwt_t	*jwt;			// JSON Web Token object
   cups_json_t	*jwk;			// JSON Web Key Set
   char		*s;			// Temporary string
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testjwt", NULL}; // Command-line arguments
 
 
   if (argc == 1)
@@ -378,7 +379,7 @@ main(int  argc,				// I - Number of command-line arguments
     }
 
     if (!testsPassed)
-      return (1);
+      return;
   }
   else
   {
@@ -392,7 +393,7 @@ main(int  argc,				// I - Number of command-line arguments
         if ((jwks = cupsJSONImportURL(argv[i], NULL)) == NULL)
         {
 	  fprintf(stderr, "%s: %s\n", argv[i], cupsGetErrorString());
-	  return (1);
+	  return;
         }
       }
       else if (!access(argv[i], R_OK))
@@ -400,7 +401,7 @@ main(int  argc,				// I - Number of command-line arguments
         if ((jwks = cupsJSONImportFile(argv[i])) == NULL)
         {
 	  fprintf(stderr, "%s: %s\n", argv[i], cupsGetErrorString());
-	  return (1);
+	  return;
         }
       }
       else if ((jwt = cupsJWTImportString(argv[i], CUPS_JWS_FORMAT_COMPACT)) != NULL)
@@ -463,10 +464,8 @@ main(int  argc,				// I - Number of command-line arguments
       else
       {
 	fprintf(stderr, "%s: %s\n", argv[i], cupsGetErrorString());
-	return (1);
+	return;
       }
     }
   }
-
-  return (0);
 }

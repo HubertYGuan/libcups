@@ -1,3 +1,5 @@
 name: libcups
 build:
   cmake: .
+  depends:
+    - mbedtls

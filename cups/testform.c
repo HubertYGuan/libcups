@@ -33,14 +33,15 @@ static void	usage(FILE *fp);
 
 
 //
-// 'main()' - Main entry.
+// 'testform_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(int  argc,				// I - Number of command-line arguments
-     char *argv[])			// I - Command-line arguments
+void					// O - Exit status
+testform_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
   int		status = 0;		// Exit status
+  int		argc = 1;		// Number of command-line arguments
+  char		*argv[] = {"testform", NULL}; // Command-line arguments
 
 
   if (argc == 1)
@@ -251,8 +252,6 @@ main(int  argc,				// I - Number of command-line arguments
       }
     }
   }
-
-  return (status);
 }
 
 

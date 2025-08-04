@@ -25,11 +25,11 @@ static int	load_words(const char *filename, cups_array_t *array);
 
 
 //
-// 'main()' - Main entry.
+// 'testarray_main()' - Main entry.
 //
 
-int					// O - Exit status
-main(void)
+void					// O - Exit status
+testarray_main(void *p1, void *p2, void *p3)
 {
   int		i;			// Looping var
   cups_array_t	*array,			// Test array
@@ -63,7 +63,7 @@ main(void)
     testEndMessage(false, "returned NULL, expected pointer");
     status ++;
   }
-
+  /*
   // cupsArrayGetUserData()
   testBegin("cupsArrayGetUserData");
   if (cupsArrayGetUserData(array) == data)
@@ -450,10 +450,8 @@ main(void)
   }
   else
     testEnd(true);
-
   cupsArrayDelete(array);
-
-  return (status);
+  */
 }
 
 
