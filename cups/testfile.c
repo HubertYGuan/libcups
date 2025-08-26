@@ -65,7 +65,7 @@ testfile_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     // Do uncompressed random I/O tests...
     status += random_tests();
 
-#ifndef _WIN32
+#ifdef pipe
     // Test fdopen and close without reading...
     pipe(fds);
     close(fds[1]);
@@ -94,9 +94,9 @@ testfile_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 #endif // !_WIN32
 
     // Count lines in test file, rewind, then count again.
-    testBegin("cupsFileOpen(\"testfile.txt\", \"r\")");
+    testBegin("cupsFileOpen(\"/lfs/testfile.txt\", \"r\")");
 
-    if ((fp = cupsFileOpen("testfile.txt", "r")) == NULL)
+    if ((fp = cupsFileOpen("/lfs/testfile.txt", "r")) == NULL)
     {
       testEnd(false);
       status ++;
@@ -158,8 +158,8 @@ testfile_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     }
 
     // Test directory functions...
-    testBegin("mkdir(\"test.d\")");
-    if (mkdir("test.d", 0777))
+    testBegin("mkdir(\"/lfs/test.d\")");
+    if (mkdir("/lfs/test.d", 0777))
     {
       testEndMessage(false, "%s", strerror(errno));
       status ++;
@@ -172,8 +172,8 @@ testfile_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 
       testEnd(true);
 
-      testBegin("cupsDirOpen(test.d)");
-      if ((dir = cupsDirOpen("test.d")) == NULL)
+      testBegin("cupsDirOpen(/lfs/test.d)");
+      if ((dir = cupsDirOpen("/lfs/test.d")) == NULL)
       {
         testEndMessage(false, "%s", strerror(errno));
         status ++;
@@ -198,7 +198,7 @@ testfile_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
       // Create some files...
       for (i = 0; i < 10; i ++)
       {
-        snprintf(filename, sizeof(filename), "test.d/testfile%d.txt", i);
+        snprintf(filename, sizeof(filename), "/lfs/test.d/testfile%d.txt", i);
         testBegin("cupsFileOpen(%s)", filename);
         if ((fp = cupsFileOpen(filename, "w")) == NULL)
         {
@@ -216,8 +216,8 @@ testfile_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 
       if (i >= 10)
       {
-	testBegin("cupsDirOpen(test.d)");
-	if ((dir = cupsDirOpen("test.d")) == NULL)
+	testBegin("cupsDirOpen(/lfs/test.d)");
+	if ((dir = cupsDirOpen("/lfs/test.d")) == NULL)
 	{
 	  testEndMessage(false, "%s", strerror(errno));
 	  status ++;
@@ -246,11 +246,11 @@ testfile_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
       // Cleanup
       for (i = 0; i < 10; i ++)
       {
-        snprintf(filename, sizeof(filename), "test.d/testfile%d.txt", i);
+        snprintf(filename, sizeof(filename), "/lfs/test.d/testfile%d.txt", i);
         unlink(filename);
       }
 
-      rmdir("test.d");
+      rmdir("/lfs/test.d");
     }
   }
   else
@@ -339,7 +339,7 @@ random_tests(void)
     // cupsFileOpen(append)
     testBegin("cupsFileOpen(append %d)", pass);
 
-    if ((fp = cupsFileOpen("testfile.dat", "a")) == NULL)
+    if ((fp = cupsFileOpen("/lfs/testfile.dat", "a")) == NULL)
     {
       testEndMessage(false, "%s", strerror(errno));
       status ++;
@@ -407,7 +407,7 @@ random_tests(void)
     // cupsFileOpen(read)
     testBegin("cupsFileOpen(read %d)", pass);
 
-    if ((fp = cupsFileOpen("testfile.dat", "r")) == NULL)
+    if ((fp = cupsFileOpen("/lfs/testfile.dat", "r")) == NULL)
     {
       testEndMessage(false, "%s", strerror(errno));
       status ++;
@@ -465,7 +465,7 @@ random_tests(void)
   }
 
   // Remove the test file...
-  unlink("testfile.dat");
+  unlink("/lfs/testfile.dat");
 
   // Return the test status...
   return (status);
@@ -504,7 +504,7 @@ read_write_tests(bool compression)	// I - Use compression?
   // cupsFileOpen(write)
   testBegin("cupsFileOpen(write%s)", compression ? " compressed" : "");
 
-  fp = cupsFileOpen(compression ? "testfile.dat.gz" : "testfile.dat", compression ? "w9" : "w");
+  fp = cupsFileOpen(compression ? "/lfs/testfile.dat.gz" : "/lfs/testfile.dat", compression ? "w9" : "w");
   if (fp)
   {
     testEnd(true);
@@ -640,7 +640,7 @@ read_write_tests(bool compression)	// I - Use compression?
   // cupsFileOpen(read)
   testBegin("cupsFileOpen(read)");
 
-  fp = cupsFileOpen(compression ? "testfile.dat.gz" : "testfile.dat", "r");
+  fp = cupsFileOpen(compression ? "/lfs/testfile.dat.gz" : "/lfs/testfile.dat", "r");
   if (fp)
   {
     testEnd(true);
@@ -820,7 +820,7 @@ read_write_tests(bool compression)	// I - Use compression?
 
   // Remove the test file...
   if (!status)
-    unlink(compression ? "testfile.dat.gz" : "testfile.dat");
+    unlink(compression ? "/lfs/testfile.dat.gz" : "/lfs/testfile.dat");
 
   // Return the test status...
   return (status);

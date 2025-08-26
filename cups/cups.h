@@ -20,7 +20,6 @@
 extern "C" {
 #  endif // __cplusplus
 
-
 //
 // Constants...
 //

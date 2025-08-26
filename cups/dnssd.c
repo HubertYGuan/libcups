@@ -17,6 +17,9 @@
 #endif // __APPLE__
 #ifdef HAVE_MDNSRESPONDER
 #  include <dns_sd.h>
+#  ifdef HAVE_ZEPHYR_MDNS
+#    include "threads.h"
+#  endif // HAVE_ZEPHYR_MDNS
 #  if _WIN32
 #    include <winsock2.h>
 #    define poll WSAPoll
@@ -63,10 +66,8 @@ struct _cups_dnssd_s			// DNS-SD context
 			*services;	// Registered services
 
 #ifdef HAVE_MDNSRESPONDER
-  DNSServiceRef		ref;		// Master service reference
+	struct dns_sd_rec	*ref;		// Master service reference
   char			hostname[256];	// Current mDNS hostname
-  DNSServiceRef		hostname_ref;	// Hostname monitoring reference
-  cups_thread_t		monitor;		// Monitoring thread
 
 #elif _WIN32
   char			hostname[256];	// Current mDNS hostname
@@ -84,6 +85,7 @@ struct _cups_dnssd_s			// DNS-SD context
 #endif // HAVE_MDNSRESPONDER
 };
 
+#ifndef HAVE_ZEPHYR_MDNS
 struct _cups_dnssd_browse_s		// DNS-SD browse request
 {
   cups_dnssd_t		*dnssd;		// DNS-SD context
@@ -158,6 +160,7 @@ struct _win32_srv_s			// Service
   WCHAR		*txt;			// TXT key/value string buffer
 };
 #endif // _WIN32
+#endif // !HAVE_ZEPHYR_MDNS
 
 struct _cups_dnssd_service_s		// DNS-SD service registration
 {
@@ -171,9 +174,9 @@ struct _cups_dnssd_service_s		// DNS-SD service registration
 
 #ifdef HAVE_MDNSRESPONDER
   size_t		num_refs;	// Number of service references
-  DNSServiceRef		refs[_CUPS_DNSSD_MAX];
+  struct dns_sd_rec		refs[_CUPS_DNSSD_MAX];
 					// Service references
-  DNSRecordRef		loc_refs[_CUPS_DNSSD_MAX];
+  struct dns_sd_rec		loc_refs[_CUPS_DNSSD_MAX];
 					// Service location records
 
 #elif _WIN32
@@ -186,25 +189,40 @@ struct _cups_dnssd_service_s		// DNS-SD service registration
 #endif // HAVE_MDNSRESPONDER
 };
 
+//
+// Local globals...
+//
+#ifdef HAVE_ZEPHYR_MDNS
+static uint8_t cups_dnssd_service_count = 0; // This has a max of 3
+static cups_mutex_t	service_count_mutex = CUPS_MUTEX_INITIALIZER;
+#endif // !HAVE_ZEPHYR_MDNS
 
 //
 // Local functions...
 //
 
+#ifndef HAVE_ZEPHYR_MDNS
 static void		delete_browse(cups_dnssd_browse_t *browse);
 static void		delete_query(cups_dnssd_query_t *query);
 static void		delete_resolve(cups_dnssd_resolve_t *resolve);
+#endif // !HAVE_ZEPHYR_MDNS
 static void		delete_service(cups_dnssd_service_t *service);
 static void		report_error(cups_dnssd_t *dnssd, const char *message, ...) _CUPS_FORMAT(2,3);
 
 #ifdef HAVE_MDNSRESPONDER
+#  ifdef HAVE_ZEPHYR_MDNS
+#define DNSSD_API
+typedef unsigned char DNSServiceErrorType;
+typedef unsigned char DNSServiceFlags;
+#define mdns_strerror(error) "Zephyr mDNS Responder does not have error codes"
+#  else
 static void		*mdns_monitor(cups_dnssd_t *dnssd);
 static void DNSSD_API	mdns_browse_cb(DNSServiceRef ref, DNSServiceFlags flags, uint32_t interfaceIndex, DNSServiceErrorType error, const char *name, const char *regtype, const char *domain, cups_dnssd_browse_t *browse);
 static void DNSSD_API	mdns_hostname_cb(DNSServiceRef ref, DNSServiceFlags flags, uint32_t if_index, DNSServiceErrorType error, const char *fullname, uint16_t rrtype, uint16_t rrclass, uint16_t rdlen, const void *rdata, uint32_t ttl, cups_dnssd_t *dnssd);
 static void DNSSD_API	mdns_query_cb(DNSServiceRef ref, DNSServiceFlags flags, uint32_t if_index, DNSServiceErrorType error, const char *name, uint16_t rrtype, uint16_t rrclass, uint16_t rdlen, const void *rdata, uint32_t ttl, cups_dnssd_query_t *query);
 static void DNSSD_API	mdns_resolve_cb(DNSServiceRef ref, DNSServiceFlags flags, uint32_t if_index, DNSServiceErrorType error, const char *fullname, const char *host, uint16_t port, uint16_t txtlen, const unsigned char *txt, cups_dnssd_resolve_t *resolve);
 static void DNSSD_API	mdns_service_cb(DNSServiceRef ref, DNSServiceFlags flags, DNSServiceErrorType error, const char *name, const char *regtype, const char *domain, cups_dnssd_service_t *service);
-static const char	*mdns_strerror(DNSServiceErrorType errorCode);
+#  endif // HAVE_ZEPHYR_MDNS
 static cups_dnssd_flags_t mdns_to_cups(DNSServiceFlags flags, DNSServiceErrorType error);
 
 #elif _WIN32
@@ -249,11 +267,14 @@ cupsDNSSDAssembleFullName(
     return (false);
 
 #ifdef HAVE_MDNSRESPONDER
+#  ifdef HAVE_ZEPHYR_MDNS
+  return (false);
+#  else
   if (fullsize < kDNSServiceMaxDomainName)
     return (false);
 
   return (DNSServiceConstructFullName(fullname, name, type, domain) == kDNSServiceErr_NoError);
-
+#  endif // HAVE_ZEPHYR_MDNS
 #elif _WIN32
   char		*fullptr,		// Pointer into full name
 		*fullend;		// End of full name
@@ -284,6 +305,7 @@ cupsDNSSDAssembleFullName(
 }
 
 
+#ifndef HAVE_ZEPHYR_MDNS
 //
 // 'cupsDNSSDBrowseDelete()' - Cancel and delete a browse request.
 //
@@ -553,7 +575,7 @@ cupsDNSSDBrowseNew(
 
   return (browse);
 }
-
+#endif // !HAVE_ZEPHYR_MDNS
 
 
 //
@@ -754,10 +776,14 @@ cupsDNSSDDelete(cups_dnssd_t *dnssd)	// I - DNS-SD context
   cupsRWUnlock(&dnssd->rwlock);
 
 #ifdef HAVE_MDNSRESPONDER
+#  ifndef HAVE_ZEPHYR_MDNS
   cupsThreadCancel(dnssd->monitor);
   cupsThreadWait(dnssd->monitor);
   DNSServiceRefDeallocate(dnssd->ref);
-
+#  else
+  // *dnssd->ref->port = 0;
+  dnssd->ref->port = NULL;
+#  endif // !HAVE_ZEPHYR_MDNS
 #elif _WIN32
 
 #else // HAVE_AVAHI
@@ -839,36 +865,13 @@ cupsDNSSDNew(
 
   // Setup the DNS-SD connection and monitor thread...
 #ifdef HAVE_MDNSRESPONDER
-  DNSServiceErrorType error;		// Error code
+  // The ref will only be created once the user registers the service
+  dnssd->ref = NULL;
 
-  if ((error = DNSServiceCreateConnection(&dnssd->ref)) != kDNSServiceErr_NoError)
-  {
-    // Unable to create connection...
-    report_error(dnssd, "Unable to initialize DNS-SD: %s", mdns_strerror(error));
-    cupsDNSSDDelete(dnssd);
-    DEBUG_puts("2cupsDNSSDNew: Unable to create DNS-SD thread - returning NULL.");
-    return (NULL);
-  }
-
-  // Monitor for hostname changes...
+  // Do not monitor for hostname changes, at least not right now
+  // Realistically, having a dynamically changing hostname for your Zephyr print server is not
+  // that important
   httpGetHostname(NULL, dnssd->hostname, sizeof(dnssd->hostname));
-  dnssd->hostname_ref = dnssd->ref;
-  if ((error = DNSServiceQueryRecord(&dnssd->hostname_ref, kDNSServiceFlagsShareConnection, kDNSServiceInterfaceIndexLocalOnly, "1.0.0.127.in-addr.arpa.", kDNSServiceType_PTR, kDNSServiceClass_IN, (DNSServiceQueryRecordReply)mdns_hostname_cb, dnssd)) != kDNSServiceErr_NoError)
-  {
-    report_error(dnssd, "Unable to query PTR record for local hostname: %s", mdns_strerror(error));
-    dnssd->hostname_ref = NULL;
-  }
-
-  // Start the background monitoring thread...
-  if ((dnssd->monitor = cupsThreadCreate((void *(*)(void *))mdns_monitor, dnssd)) == 0)
-  {
-    report_error(dnssd, "Unable to create DNS-SD thread: %s", strerror(errno));
-    cupsDNSSDDelete(dnssd);
-    DEBUG_puts("2cupsDNSSDNew: Unable to create DNS-SD thread - returning NULL.");
-    return (NULL);
-  }
-
-  DEBUG_printf("2cupsDNSSDNew: dnssd->monitor=%p", (void *)dnssd->monitor);
 
 #elif _WIN32
   char	compname[256];			// Computer name
@@ -929,6 +932,7 @@ cupsDNSSDNew(
 }
 
 
+#ifndef HAVE_ZEPHYR_MDNS
 //
 // 'cupsDNSSDQueryDelete()' - Cancel and delete a query request.
 //
@@ -1284,7 +1288,7 @@ cupsDNSSDResolveNew(
 
   return (resolve);
 }
-
+#endif // !HAVE_ZEPHYR_MDNS
 
 //
 // 'cupsDNSSDSeparateFullName()' - Separate a full service name into an instance
@@ -1440,10 +1444,7 @@ cupsDNSSDServiceAdd(
     return (false);
 
 #ifdef HAVE_MDNSRESPONDER
-  DNSServiceErrorType	error;		// Error, if any
-  TXTRecordRef		txtrec,		// TXT record
-			*txtptr = NULL;	// Pointer to TXT record, if any
-
+  char *txt_str = NULL;
   // Limit number of services with this name...
   if (service->num_refs >= (sizeof(service->refs) / sizeof(service->refs[0])))
   {
@@ -1452,36 +1453,81 @@ cupsDNSSDServiceAdd(
     goto done;
   }
 
-  // Create the TXT record as needed...
+  // Create the TXT record as needed... This does not actually set the txt record right now since service records are in ROM
   if (num_txt)
   {
-    TXTRecordCreate(&txtrec, 1024, NULL);
-    for (i = 0; i < num_txt; i ++)
-      TXTRecordSetValue(&txtrec, txt[i].name, (uint8_t)strlen(txt[i].value), txt[i].value);
-
-    txtptr = &txtrec;
+    uint32_t len = strlen(txt[0].name) + strlen(txt[0].value) + 2 + 1;
+    uint32_t size = len - 1; // size of latest element
+    if (size > 255)
+    {
+      report_error(service->dnssd, "Unable to create DNS-SD service registration: TXT pair too long.");
+      ret = false;
+      goto done;
+    }
+    txt_str = malloc(len);
+    if (!txt_str)
+    {
+      report_error(service->dnssd, "Unable to create DNS-SD service registration: Unable to allocate memory.");
+      ret = false;
+      goto done;
+    }
+    snprintf(txt_str, len, "%c%s=%s", size, txt[0].name, txt[0].value);
+    for (i = 1; i < num_txt; i ++)
+    {
+      char *old_txt = txt_str;
+      size = strlen(txt[i].name) + strlen(txt[i].value) + 2;
+      if (size > 255)
+      {
+        report_error(service->dnssd, "Unable to create DNS-SD service registration: TXT pair too long.");
+        ret = false;
+        free(old_txt);
+        goto done;
+      }
+      len += size;
+      txt_str = malloc(len);
+      if (!txt_str)
+      {
+        report_error(service->dnssd, "Unable to create DNS-SD service registration: Unable to allocate memory.");
+        ret = false;
+        free(old_txt);
+        goto done;
+      }
+      snprintf(txt_str, len, "%s%c%s=%s", old_txt, size, txt[0].name, txt[0].value);
+      free(old_txt);
+    }
   }
 
-  service->refs[service->num_refs] = service->dnssd->ref;
-  if ((error = DNSServiceRegister(service->refs + service->num_refs, kDNSServiceFlagsShareConnection | kDNSServiceFlagsNoAutoRename, service->if_index, service->name, types, domain, host, htons(port), txtptr ? TXTRecordGetLength(txtptr) : 0, txtptr ? TXTRecordGetBytesPtr(txtptr) : NULL, (DNSServiceRegisterReply)mdns_service_cb, service)) != kDNSServiceErr_NoError)
-  {
-    if (txtptr)
-      TXTRecordDeallocate(txtptr);
+  // Parse types into proto, currently Zephyr only supports tcp or udp
+  char *proto = NULL;
+  if (strstr(types, "_tcp"))
+    proto = "_tcp";
+  else if (strstr(types, "_udp"))
+    proto = "_udp";
 
-    report_error(service->dnssd, "Unable to create DNS-SD service registration: %s", mdns_strerror(error));
+  cupsMutexLock(&service_count_mutex);
+  if (cups_dnssd_service_count < 3)
+  {
+    struct dns_sd_rec *temp;
+    DNS_SD_GET(cups_dnssd_service_count, &temp);
+    service->dnssd->ref = temp;
+    dnssd_ports[cups_dnssd_service_count] = port;
+    service->refs[service->num_refs] = *service->dnssd->ref;
+    ++cups_dnssd_service_count;
+  }
+  else
+  {
+      report_error(service->dnssd, "Unable to create DNS-SD service registration.");
+      ret = false;
+      cupsMutexUnlock(&service_count_mutex);
+      goto done;
+  }
+  cupsMutexUnlock(&service_count_mutex);
+
+  if (dns_sd_rec_is_valid(&service->refs[service->num_refs]) == false)
+  {
+    report_error(service->dnssd, "Unable to create DNS-SD service registration.");
     ret = false;
     goto done;
-  }
-
-  if (txtptr)
-    TXTRecordDeallocate(txtptr);
-
-  if (service->loc_set)
-  {
-    if ((error = DNSServiceAddRecord(service->refs[service->num_refs], service->loc_refs + service->num_refs, 0, kDNSServiceType_LOC, sizeof(service->loc), service->loc, 0)) != kDNSServiceErr_NoError)
-    {
-      report_error(service->dnssd, "Unable to add DNS-SD service location data: %s", mdns_strerror(error));
-    }
   }
 
   service->num_refs ++;
@@ -1937,6 +1983,7 @@ cupsDNSSDServiceSetLocation(
 }
 
 
+#ifndef HAVE_ZEPHYR_MDNS
 //
 // 'delete_browse()' - Delete a browse request.
 //
@@ -2004,6 +2051,7 @@ delete_resolve(
 #endif // HAVE_MDNSRESPONDER
 
 }
+#endif // HAVE_ZEPHYR_MDNS
 
 
 //
@@ -2020,7 +2068,12 @@ delete_service(
   size_t	i;			// Looping var
 
   for (i = 0; i < service->num_refs; i ++)
+#  ifdef HAVE_ZEPHYR_MDNS
+    // *service->refs[i].port = 0;
+    service->refs[i].port = NULL;
+#  else
     DNSServiceRefDeallocate(service->refs[i]);
+#  endif // HAVE_ZEPHYR_MDNS
 
 #elif _WIN32
   size_t	i;			// Looping var
@@ -2069,6 +2122,7 @@ report_error(cups_dnssd_t *dnssd,	// I - DNS-SD context
 
 
 #ifdef HAVE_MDNSRESPONDER
+#ifndef HAVE_ZEPHYR_MDNS
 //
 // 'mdns_browse_cb()' - Handle DNS-SD browse callbacks from mDNSResponder.
 //
@@ -2425,6 +2479,7 @@ mdns_strerror(
 #endif // !_WIN32
   }
 }
+#endif // !HAVE_ZEPHYR_MDNS
 
 
 //
@@ -2439,13 +2494,14 @@ mdns_to_cups(
   cups_dnssd_flags_t	cups_flags = CUPS_DNSSD_FLAGS_NONE;
 					// CUPS DNS-SD flags
 
-
+  #ifndef HAVE_ZEPHYR_MDNS
   if (flags & kDNSServiceFlagsAdd)
     cups_flags |= CUPS_DNSSD_FLAGS_ADD;
   if (flags & kDNSServiceFlagsMoreComing)
     cups_flags |= CUPS_DNSSD_FLAGS_MORE;
   if (error != kDNSServiceErr_NoError)
     cups_flags |= CUPS_DNSSD_FLAGS_ERROR;
+  #endif // !HAVE_ZEPHYR_MDNS
 
   return (cups_flags);
 }

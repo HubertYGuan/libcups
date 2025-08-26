@@ -9,8 +9,10 @@
 
 #include "cups.h"
 #include "test-internal.h"
+#include <zephyr/kernel.h>
 #include <math.h>
 
+#define sleep(x) k_msleep(x * 1000u)
 
 //
 // 'testclock_main()' - Main entry for clock tests.

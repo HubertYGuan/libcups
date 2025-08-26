@@ -15,6 +15,7 @@
 #include "dir.h"
 #include "test-internal.h"
 
+LOG_MODULE_REGISTER(libcups);
 
 //
 // Local functions...
@@ -63,7 +64,7 @@ testarray_main(void *p1, void *p2, void *p3)
     testEndMessage(false, "returned NULL, expected pointer");
     status ++;
   }
-  /*
+  
   // cupsArrayGetUserData()
   testBegin("cupsArrayGetUserData");
   if (cupsArrayGetUserData(array) == data)
@@ -237,7 +238,7 @@ testarray_main(void *p1, void *p2, void *p3)
 
   start = get_seconds();
 
-  if ((dir = cupsDirOpen(".")) == NULL)
+  if ((dir = cupsDirOpen("/lfs")) == NULL)
   {
     testEndMessage(false, "cupsDirOpen failed");
     status ++;
@@ -248,11 +249,11 @@ testarray_main(void *p1, void *p2, void *p3)
 
     while ((dent = cupsDirRead(dir)) != NULL)
     {
-      i = (int)strlen(dent->filename) - 2;
-
-      if (i > 0 && dent->filename[i] == '.' && (dent->filename[i + 1] == 'c' || dent->filename[i + 1] == 'h'))
+      if (!strcmp(dent->filename, "md2pdf.md")) // put in file of choice here
       {
-	if (!load_words(dent->filename, array))
+        char abs_path[256];
+        snprintf(abs_path, sizeof(abs_path) - 1, "/lfs/%s", dent->filename);
+	if (!load_words(abs_path, array))
 	{
 	  load_status = false;
 	  break;
@@ -451,7 +452,6 @@ testarray_main(void *p1, void *p2, void *p3)
   else
     testEnd(true);
   cupsArrayDelete(array);
-  */
 }
 
 
@@ -491,25 +491,26 @@ static int				// O - 1 on success, 0 on failure
 load_words(const char   *filename,	// I - File to load
            cups_array_t *array)		// I - Array to add to
 {
-  FILE		*fp;			// Test file
+  struct fs_file_t  zfp;			// Test file
   char		word[256];		// Word from file
+  fs_file_t_init(&zfp);
 
+  // testProgress();
 
-  testProgress();
-
-  if ((fp = fopen(filename, "r")) == NULL)
+  int ret = 0;
+  if ((ret = fs_open(&zfp, filename, FS_O_READ)) != 0)
   {
-    testEndMessage(false, "%s: %s", filename, strerror(errno));
+    testEndMessage(false, "%s: %s", filename, strerror(-ret));
     return (0);
   }
 
-  while (fscanf(fp, "%255s", word) == 1)
+  while (fs_read(&zfp, word, 16) > 0)
   {
     if (!cupsArrayFind(array, word))
       cupsArrayAdd(array, word);
   }
 
-  fclose(fp);
+  fs_close(&zfp);
 
   return (1);
 }

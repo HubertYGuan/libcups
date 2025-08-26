@@ -253,7 +253,7 @@ cupsCreateCredentials(
   if (err)
   {
     DEBUG_puts("Failed to init psa crypto.\n");
-    return false;
+    return (false);
   }
 
   // Seed the PRNG
@@ -878,7 +878,7 @@ cupsCreateCredentialsRequest(
   if (err)
   {
     DEBUG_puts("Failed to init psa crypto.\n");
-    return false;
+    return (false);
   }
 
   // Seed the PRNG
@@ -2526,14 +2526,14 @@ _httpTLSStart(http_t *http)		// I - Connection to server
   {
     mbedtls_strerror(status, error_str, sizeof(error_str));
     DEBUG_printf("Failed to seed PRNG: %s\n", error_str);
-    return false;
+    return (false);
   }
   status = psa_crypto_init();
   if (status)
   {
     mbedtls_strerror(status, error_str, sizeof(error_str));
     DEBUG_printf("Failed to init PSA crypto: %s\n", error_str);
-    return false;
+    return (false);
   }
   
   mbedtls_ssl_init(http->tls);
@@ -2650,7 +2650,7 @@ _httpTLSStart(http_t *http)		// I - Connection to server
         // No CUPS-managed certs, look for CA certs...
         char cacrtfile[1024], cakeyfile[1024];	// CA cert files
 
-        // change these paths
+        // TODO change these paths
         snprintf(cacrtfile, sizeof(cacrtfile), "/etc/letsencrypt/live/%s/fullchain.pem", cn);
         snprintf(cakeyfile, sizeof(cakeyfile), "/etc/letsencrypt/live/%s/privkey.pem", cn);
 
@@ -2773,14 +2773,14 @@ _httpTLSStart(http_t *http)		// I - Connection to server
   {
     mbedtls_strerror(status, error_str, sizeof(error_str));
     DEBUG_printf("Failed ssl setup: %s\n", error_str);
-    return false;
+    return (false);
   }
   status = mbedtls_ssl_set_hostname(http->tls, hostname);
   if (status)
   {
     mbedtls_strerror(status, error_str, sizeof(error_str));
     DEBUG_printf("Failed to set hostname: %s\n", error_str);
-    return false;
+    return (false);
   }
 
   // TODO: look into using httpWait as recv_timeout
@@ -2818,7 +2818,7 @@ _httpTLSStart(http_t *http)		// I - Connection to server
       http->tls = NULL;
 
       httpSetTimeout(http, old_timeout, old_cb, old_data);
-      return false;
+      return (false);
     }
   }
 
@@ -3052,7 +3052,7 @@ int mbedtls_http_read(void *ctx, unsigned char *data, size_t length)
   http_t	*http;			// HTTP connection
   ssize_t	bytes;			// Bytes read
 
-  DEBUG_printf("5mbedtls_http_read(ptr=%p, data=%p, length=%d)", ptr, data, (int)length);
+  DEBUG_printf("5mbedtls_http_read(ctx=%p, data=%p, length=%d)", ctx, data, (int)length);
 
   http = (http_t *)ctx;
 
@@ -3096,7 +3096,7 @@ int mbedtls_http_write(void *ctx, const unsigned char *data, size_t length)
 {
   ssize_t bytes;			// Bytes written
 
-  DEBUG_printf("5mbedtls_http_write(ptr=%p, data=%p, length=%d)", ptr, data, (int)length);
+  DEBUG_printf("5mbedtls_http_write(ctx=%p, data=%p, length=%d)", ctx, data, (int)length);
   bytes = send(((http_t *)ctx)->fd, data, length, 0);
   DEBUG_printf("5mbedtls_http_write: bytes=%d", (int)bytes);
 

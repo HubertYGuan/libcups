@@ -19,6 +19,7 @@
 void					// O - Exit status
 testoptions_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
+  LOG_MODULE_DECLARE(libcups);
   int		status = 0;		// Exit status
   size_t	num_options;		// Number of options
   cups_option_t	*options;		// Options
@@ -84,10 +85,16 @@ testoptions_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 
     testBegin("cupsEncodeOptions");
     request = ippNew();
+    LOG_INF("hi\n");
     ippSetOperation(request, IPP_OP_PRINT_JOB);
+    LOG_INF("hi2\n");
 
     cupsEncodeOptions(request, num_options, options, IPP_TAG_JOB);
-    for (count = 0, attr = ippGetFirstAttribute(request); attr; attr = ippGetNextAttribute(request), count ++);
+    LOG_INF("hi3\n");
+    for (count = 0, attr = ippGetFirstAttribute(request); attr; attr = ippGetNextAttribute(request), count ++)
+    {
+      LOG_INF("hi count: %d\n", count);
+    }
     if (count != 6)
     {
       testEndMessage(false, "%d attributes, expected 6", count);

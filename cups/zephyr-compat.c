@@ -12,8 +12,8 @@ int access(const char *path, int amode)
     return fs_stat(path, &buf);
 }
 
-// From newlib
-int isatty(int fd)
+// From newlib, I found it's actually best to just never use isatty actually
+/* int isatty(int fd)
 {
   struct stat buf;
 
@@ -25,7 +25,7 @@ int isatty(int fd)
     return 1;
   errno = ENOTTY;
   return 0;
-}
+} */
 
 // Below functions from minimal libc
 

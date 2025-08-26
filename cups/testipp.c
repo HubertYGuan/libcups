@@ -845,7 +845,7 @@ testipp_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 	print_attributes(request, 4);
 
         // Write to FILENAME.out
-        snprintf(outname, sizeof(outname), "%s.out", argv[i]);
+        snprintf(outname, sizeof(outname), "/lfs/%s.out", argv[i]);
 
         if ((fp = cupsFileOpen(outname, "w")) == NULL)
         {

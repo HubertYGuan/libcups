@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 int access(const char *path, int amode);
-int isatty (int fd);
+int isatty (int fd); // Do not use
 struct tm *gmtime(const time_t *timep);
 struct tm *gmtime_r(const time_t *ZRESTRICT timep, struct tm *ZRESTRICT result);
 

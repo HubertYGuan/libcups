@@ -2521,13 +2521,13 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
   if (mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, NULL, 0))
   {
     DEBUG_puts("Failed to seed prng\n");
-    return false;
+    return (false);
   }
   
   if (psa_crypto_init())
   {
     DEBUG_puts("Failed to init PSA crypto\n");
-    return false;
+    return (false);
   }
 
   static mbedtls_md_type_t algs[] = { MBEDTLS_MD_SHA256, MBEDTLS_MD_SHA384, MBEDTLS_MD_SHA512 };

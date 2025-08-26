@@ -14,6 +14,9 @@
 extern "C" {
 #  endif // __cplusplus
 
+#ifdef HAVE_ZEPHYR_MDNS
+#include <dns_sd.h>
+#endif // HAVE_MDNS_RESPONDER
 
 //
 // Types and constants...
@@ -60,21 +63,29 @@ typedef enum cups_dnssd_rrtype_e	// DNS record type values
   CUPS_DNSSD_RRTYPE_ANY = 255		// Wildcard match
 } cups_dnssd_rrtype_t;
 
+#ifndef HAVE_ZEPHYR_MDNS
 typedef struct _cups_dnssd_browse_s cups_dnssd_browse_t;
 					// DNS browse request
+#else
+typedef unsigned char cups_dnssd_browse_t;
+#endif // !HAVE_ZEPHYR_MDNS
 typedef void (*cups_dnssd_browse_cb_t)(cups_dnssd_browse_t *browse, void *cb_data, cups_dnssd_flags_t flags, uint32_t if_index, const char *name, const char *regtype, const char *domain);
 					// DNS-SD browse callback
 
 typedef void (*cups_dnssd_error_cb_t)(void *cb_data, const char *message);
 					// DNS-SD error callback
 
+#ifndef HAVE_ZEPHYR_MDNS
 typedef struct _cups_dnssd_query_s cups_dnssd_query_t;
 					// DNS query request
-typedef void (*cups_dnssd_query_cb_t)(cups_dnssd_query_t *query, void *cb_data, cups_dnssd_flags_t flags, uint32_t if_index, const char *fullname, uint16_t rrtype, const void *qdata, uint16_t qlen);
-					// DNS-SD query callback
-
 typedef struct _cups_dnssd_resolve_s cups_dnssd_resolve_t;
 					// DNS resolve request
+#else
+typedef unsigned char cups_dnssd_query_t;
+typedef unsigned char cups_dnssd_resolve_t;
+#endif // !HAVE_ZEPHYR_MDNS
+typedef void (*cups_dnssd_query_cb_t)(cups_dnssd_query_t *query, void *cb_data, cups_dnssd_flags_t flags, uint32_t if_index, const char *fullname, uint16_t rrtype, const void *qdata, uint16_t qlen);
+					// DNS-SD query callback
 typedef void (*cups_dnssd_resolve_cb_t)(cups_dnssd_resolve_t *res, void *cb_data, cups_dnssd_flags_t flags, uint32_t if_index, const char *fullname, const char *host, uint16_t port, size_t num_txt, cups_option_t *txt);
 					// DNS-SD resolve callback
 
@@ -83,6 +94,16 @@ typedef struct _cups_dnssd_service_s cups_dnssd_service_t;
 typedef void (*cups_dnssd_service_cb_t)(cups_dnssd_service_t *service, void *cb_data, cups_dnssd_flags_t flags);
 					// DNS-SD service registration callback
 
+//
+// Globals...
+//
+#ifdef HAVE_ZEPHYR_MDNS
+// You need to change the appropriate port here to your printer's port every time you register your printer
+static uint16_t dnssd_ports[3] = {0};
+DNS_SD_REGISTER_SERVICE(cups_service_0, "Printer with Zephyr", "_ipp", "_tcp", "local", DNS_SD_EMPTY_TXT /*need to move to RAM to allow changing this txt record*/, &dnssd_ports[0]);
+DNS_SD_REGISTER_SERVICE(cups_service_1, "Printer with Zephyr 1", "_ipp", "_tcp", "local", DNS_SD_EMPTY_TXT /*need to move to RAM to allow changing this txt record*/, &dnssd_ports[1]);
+DNS_SD_REGISTER_SERVICE(cups_service_2, "Printer with Zephyr 2", "_ipp", "_tcp", "local", DNS_SD_EMPTY_TXT /*need to move to RAM to allow changing this txt record*/, &dnssd_ports[2]);
+#endif // HAVE_ZEPHYR_MDNS
 
 //
 // Functions...
@@ -94,6 +115,7 @@ extern void		cupsDNSSDDelete(cups_dnssd_t *dnssd) _CUPS_PUBLIC;
 extern size_t		cupsDNSSDGetConfigChanges(cups_dnssd_t *dnssd) _CUPS_PUBLIC;
 extern cups_dnssd_t	*cupsDNSSDNew(cups_dnssd_error_cb_t error_cb, void *cb_data) _CUPS_PUBLIC;
 
+#ifndef HAVE_ZEPHYR_MDNS
 extern void		cupsDNSSDBrowseDelete(cups_dnssd_browse_t *browser) _CUPS_PUBLIC;
 extern cups_dnssd_t	*cupsDNSSDBrowseGetContext(cups_dnssd_browse_t *browser) _CUPS_PUBLIC;
 extern cups_dnssd_browse_t *cupsDNSSDBrowseNew(cups_dnssd_t *dnssd, uint32_t if_index, const char *types, const char *domain, cups_dnssd_browse_cb_t browse_cb, void *cb_data) _CUPS_PUBLIC;
@@ -105,6 +127,19 @@ extern cups_dnssd_query_t *cupsDNSSDQueryNew(cups_dnssd_t *dnssd, uint32_t if_in
 extern void		cupsDNSSDResolveDelete(cups_dnssd_resolve_t *res) _CUPS_PUBLIC;
 extern cups_dnssd_t	*cupsDNSSDResolveGetContext(cups_dnssd_resolve_t *res) _CUPS_PUBLIC;
 extern cups_dnssd_resolve_t *cupsDNSSDResolveNew(cups_dnssd_t *dnssd, uint32_t if_index, const char *name, const char *type, const char *domain, cups_dnssd_resolve_cb_t resolve_cb, void *cb_data) _CUPS_PUBLIC;
+#else
+#define cupsDNSSDBrowseDelete(x)
+#define cupsDNSSDBrowseGetContext(x) NULL
+#define cupsDNSSDBrowseNew(x,y,z,w,u,v,a) NULL
+
+#define cupsDNSSDQueryDelete(x)
+#define cupsDNSSDQueryGetContext(x) NULL
+#define cupsDNSSDQueryNew(x,y,z,w,u,v,a) NULL
+
+#define cupsDNSSDResolveDelete(x)
+#define cupsDNSSDResolveGetContext(x) NULL
+#define cupsDNSSDResolveNew(x,y,z,w,u,v,a) NULL
+#endif // !HAVE_ZEPHYR_MDNS
 
 extern bool		cupsDNSSDServiceAdd(cups_dnssd_service_t *service, const char *types, const char *domain, const char *host, uint16_t port, size_t num_txt, cups_option_t *txt) _CUPS_PUBLIC;
 extern void		cupsDNSSDServiceDelete(cups_dnssd_service_t *service) _CUPS_PUBLIC;

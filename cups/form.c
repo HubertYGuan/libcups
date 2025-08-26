@@ -10,7 +10,7 @@
 
 #include "form.h"
 #include "cups-private.h"
-
+#include <zephyr/logging/log.h>
 
 //
 // Local functions...
@@ -34,12 +34,12 @@ size_t					// O - Number of variables
 cupsFormDecode(const char    *data,	// I - URL-encoded form data
                cups_option_t **vars)	// O - Array of variables
 {
+  LOG_MODULE_DECLARE(libcups);
   size_t	num_vars = 0;		// Number of variables
   char		name[1024],		// Variable name
 		value[4096];		// Variable value
 
-
-  DEBUG_printf("cupsFormDecode(data=\"%s\", vars=%p)", data, (void *)vars);
+  LOG_INF("cupsFormDecode(data=\"%s\", vars=%p)", data, (void *)vars);
 
   // Range check...
   if (vars)
@@ -65,23 +65,23 @@ cupsFormDecode(const char    *data,	// I - URL-encoded form data
   while (*data)
   {
     // Get the name and value...
-    DEBUG_printf("2cupsFormDecode: LOOP data=%p, *data='%c'", data, data ? *data : '?');
+    LOG_INF("2cupsFormDecode: LOOP data=%p, *data='%c'", data, data ? *data : '?');
     data = decode_string(data, name, sizeof(name));
 
     if (!data || *data != '=')
     {
-      DEBUG_printf("2cupsFormDecode: NAMEERROR data=%p, *data='%c'", data, data ? *data : '?');
+      LOG_INF("2cupsFormDecode: NAMEERROR data=%p, *data='%c'", data, data ? *data : '?');
       goto decode_error;
     }
 
-    DEBUG_printf("2cupsFormDecode: name=\"%s\"", name);
+    LOG_INF("2cupsFormDecode: name=\"%s\"", name);
     data ++;
 
     data = decode_string(data, value, sizeof(value));
 
     if (!data || (*data && *data != '&'))
     {
-      DEBUG_printf("2cupsFormDecode: VALUEERROR data=%p, *data='%c'", data, data ? *data : '?');
+      LOG_INF("2cupsFormDecode: VALUEERROR data=%p, *data='%c'", data, data ? *data : '?');
       goto decode_error;
     }
     else if (*data)
@@ -90,18 +90,18 @@ cupsFormDecode(const char    *data,	// I - URL-encoded form data
 
       if (!*data)
       {
-	DEBUG_printf("2cupsFormDecode: POSTERROR data=%p, *data='%c'", data, data ? *data : '?');
+	LOG_INF("2cupsFormDecode: POSTERROR data=%p, *data='%c'", data, data ? *data : '?');
         goto decode_error;
       }
     }
 
-    DEBUG_printf("2cupsFormDecode: value=\"%s\"", value);
+    LOG_INF("2cupsFormDecode: value=\"%s\"", value);
 
     // Add the variable...
     num_vars = cupsAddOption(name, value, num_vars, vars);
   }
 
-  DEBUG_printf("2cupsFormDecode: Returning %lu", (unsigned long)num_vars);
+  LOG_INF("2cupsFormDecode: Returning %lu", (unsigned long)num_vars);
 
   return (num_vars);
 
@@ -113,7 +113,7 @@ cupsFormDecode(const char    *data,	// I - URL-encoded form data
   _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Invalid form data."), 1);
   *vars = NULL;
 
-  DEBUG_puts("2cupsFormDecode: Returning 0");
+  LOG_INF("2cupsFormDecode: Returning 0");
 
   return (0);
 }

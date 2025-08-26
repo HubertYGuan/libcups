@@ -5,9 +5,10 @@ project(libcups)
 
 set(LIBCUPS_SRCS
 		cups/zephyr-compat.c
+		cups/termios.c
+		cups/regfree.c
 		cups/auth.c
         cups/array.c 
-#		cups/auth.c 
 		cups/clock.c 
 		cups/debug.c
 #		cups/dest.c
@@ -15,7 +16,7 @@ set(LIBCUPS_SRCS
 #		cups/dest-localization.c
 #		cups/dest-options.c
 		cups/dir.c 
-#		cups/dnssd.c
+		cups/dnssd.c
 		cups/encode.c 
 		cups/file.c 
 		cups/form.c 
@@ -79,18 +80,20 @@ set(LIBCUPS_TEST_SRCS
 		cups/tlscheck.c
 )
 
-zephyr_interface_library_named(LIBCUPS)
+zephyr_library_named(LIBCUPS)
 
 zephyr_include_directories(.)
+# zephyr_include_directories(${ZEPHYR_MBEDTLS_MODULE_DIR}/include)
 
-zephyr_library()
 zephyr_library_sources( ${LIBCUPS_SRCS} ${LIBCUPS_TEST_SRCS} )
+zephyr_library_link_libraries(mbedTLSCrypto mbedTLSX509 mbedTLSBase)
 
-zephyr_library_compile_options(-D_CUPS_SOURCE  -D_THREAD_SAFE -D_REENTRANT -D_REENTRANT -D_FORTIFY_SOURCE=3 -D__USE_MISC -D_GNU_SOURCE -fPIC  -g -Os -Wall -Wunused -Wno-char-subscripts -Wno-deprecated-declarations -Wno-format-truncation -Wno-format-y2k -Wno-switch -Wno-unused-result)
+zephyr_library_compile_options(-D_CUPS_SOURCE  -D_THREAD_SAFE -D_REENTRANT -D_REENTRANT -D_FORTIFY_SOURCE=3 -D__USE_MISC -D_GNU_SOURCE -fPIC  -g -Os -Wall -Wunused -Wno-char-subscripts -Wno-deprecated-declarations -Wno-format-truncation -Wno-format-y2k -Wno-switch -Wno-unused-result #[[-DDEBUG]])
 
-zephyr_library_compile_options(-U_POSIX_C_SOURCE -D_POSIX_C_SOURCE=200809L -I${ZEPHYR_MBEDTLS_MODULE_DIR}/include)
+zephyr_library_compile_options(-U_POSIX_C_SOURCE -D_POSIX_C_SOURCE=200809L)
 
-zephyr_library_link_libraries(LIBCUPS)
-target_link_libraries(LIBCUPS INTERFACE zephyr_interface)
+#add_subdirectory(${ZEPHYR_LIBCUPS_MODULE_DIR}/mbedtls)
+#target_include_directories(LIBCUPS INTERFACE ${ZEPHYR_LIBCUPS_MODULE_DIR}/mbedtls/include)
+#target_link_libraries(LIBCUPS INTERFACE mbedcrypto mbedtls mbedx509)
 
 endif(CONFIG_LIBCUPS)

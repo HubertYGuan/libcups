@@ -43,7 +43,7 @@ testcups_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
   const char	*dest_name,		// Destination name
 		*dval;			// Destination value
   int		argc = 1;		// Number of command-line arguments
-  char		*argv[] = {"testcups", NULL}; // Command-line arguments
+  char		*argv[] = {"testcups", "enum"}; // Command-line arguments
 #if 0
   int		num_jobs;		// Number of jobs for queue
   cups_job_t	*jobs;			// Jobs for queue

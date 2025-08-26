@@ -319,10 +319,12 @@ static bool		StopPrinter = false;
 //
 
 int					// O - Exit status
-main(int  argc,				// I - Number of command-line args
-     char *argv[])			// I - Command-line arguments
+main()			// I - Command-line arguments
 {
-  int		i;			// Looping var
+  int argc = 2;
+  char *argv[] = {"ippeveprinter", "My Cool Printer" /*Currently this name does not work with Zephyr's mDNS Responder*/};
+  int		i;			// Looping varint  argc,				// I - Number of command-line args
+  char *argv[]
   const char	*opt,			// Current option character
 		*attrfile = NULL,	// ippserver attributes file
 		*command = NULL,	// Command to run with job files

@@ -21,7 +21,7 @@
 #  endif // !R_OK
 #else
 #  include <signal.h>
-#  include <termios.h>
+#  include <cups/termios.h>
 #endif // _WIN32
 #ifndef O_BINARY
 #  define O_BINARY 0

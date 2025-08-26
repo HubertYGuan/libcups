@@ -53,7 +53,7 @@
 // Constants...
 //
 
-#define TEST_CERT_PATH	".testssl"
+#define TEST_CERT_PATH	"/lfs/.testssl"
 
 
 //

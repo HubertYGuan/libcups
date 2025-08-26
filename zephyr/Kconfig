@@ -1,4 +1,5 @@
 config LIBCUPS
 	bool "Enable libcups"
+	select MBEDTLS
 	help
 	  This option enables libcups as a Zephyr module.

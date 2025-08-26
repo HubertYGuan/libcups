@@ -125,6 +125,10 @@
 
 #define HAVE_MDNSRESPONDER 1
 
+//
+// Are we using Zephyr MDNS Responder?
+
+#define HAVE_ZEPHYR_MDNS 1
 
 //
 // Do we have Avahi for DNS-SD?
@@ -200,7 +204,7 @@
 // Do we have the <iconv.h> header?
 //
 
-#define HAVE_ICONV_H 1
+#undef HAVE_ICONV_H
 
 
 //

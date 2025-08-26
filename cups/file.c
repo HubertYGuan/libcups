@@ -581,7 +581,7 @@ cupsFileLock(cups_file_t *fp,		// I - CUPS file
 #  ifdef lockf
   return (lockf(fp->fd, block ? F_LOCK : F_TLOCK, 0) == 0);
 #  else
-  return false;
+  return (false);
 #  endif // lockf
 #endif // _WIN32
 }
@@ -1407,7 +1407,7 @@ cupsFileUnlock(cups_file_t *fp)		// I - CUPS file
 #  ifdef lockf
   return (lockf(fp->fd, F_ULOCK, 0) == 0);
 #  else
-  return false; // File locking is not supported
+  return (false); // File locking is not supported
 #  endif // lockf
 #endif // _WIN32
 }

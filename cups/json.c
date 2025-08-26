@@ -11,6 +11,7 @@
 #include "json-private.h"
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <zephyr/fs/fs.h>
 
 
 //
@@ -624,55 +625,59 @@ cups_json_t *				// O - Root JSON object node
 cupsJSONImportFile(const char *filename)// I - JSON filename
 {
   cups_json_t	*json;			// Root JSON object node
-  int		fd;			// JSON file
-  struct stat	fileinfo;		// JSON file information
+  struct fs_file_t  zfp;			// Test file
+  fs_file_t_init(&zfp);
   char		*s;			// Allocated string containing JSON file
   ssize_t	bytes;			// Bytes read
-
+  int ret;
+  struct fs_dirent entry = {0};
 
   // Range check input...
   if (!filename)
     return (NULL);
 
   // Try opening the file...
-  if ((fd = open(filename, O_RDONLY)) < 0)
+  if ((ret = fs_open(&zfp, filename, FS_O_READ)) != 0)
   {
+    errno = ret;
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     return (NULL);
   }
-  else if (fstat(fd, &fileinfo))
+  else if ((ret = fs_stat(filename, &entry)) != 0)
   {
+    errno = ret;
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
-    close(fd);
+    fs_close(&zfp);
     return (NULL);
   }
-  else if (fileinfo.st_size > 16777216)
+  else if (entry.size > 16777216)
   {
     // Don't support JSON files over 16MiB
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("JSON file too large."), 1);
-    close(fd);
+    fs_close(&zfp);
     return (NULL);
   }
 
   // Allocate memory for the JSON file...
-  if ((s = malloc((size_t)fileinfo.st_size + 1)) == NULL)
+  if ((s = malloc(entry.size + 1)) == NULL)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
-    close(fd);
+    fs_close(&zfp);
     return (NULL);
   }
 
   // Read the file into the allocated string...
-  if ((bytes = read(fd, s, (size_t)fileinfo.st_size)) < 0)
+  if ((bytes = fs_read(&zfp, s, entry.size)) < 0)
   {
+    errno = bytes;
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
-    close(fd);
+    fs_close(&zfp);
     free(s);
     return (NULL);
   }
 
   s[bytes] = '\0';
-  close(fd);
+  fs_close(&zfp);
 
   // Load the resulting string
   json = cupsJSONImportString(s);

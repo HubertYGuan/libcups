@@ -19,6 +19,7 @@
 void					// O - Exit status
 testjson_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
+  LOG_MODULE_DECLARE(libcups);
   int		i;			// Looping var
   cups_json_t	*json;			// JSON root object
   int		argc = 1;		// Number of command-line arguments
@@ -182,14 +183,15 @@ testjson_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     count = cupsJSONGetCount(json);
     testEndMessage(count == 14, "%u", (unsigned)count);
 
-    testBegin("cupsJSONExportFile(root, 'test.json')");
-    if (cupsJSONExportFile(json, "test.json"))
+    testBegin("cupsJSONExportFile(root, '/lfs/test.json')");
+    if (cupsJSONExportFile(json, "/lfs/test.json"))
     {
       testEnd(true);
 
-      testBegin("cupsJSONImportFile('test.json')");
-      parent = cupsJSONImportFile("test.json");
+      testBegin("cupsJSONImportFile('/lfs/test.json')");
+      parent = cupsJSONImportFile("/lfs/test.json");
       testEnd(parent != NULL);
+      LOG_INF("%s\n", strerror(errno));
 
       cupsJSONDelete(parent);
     }

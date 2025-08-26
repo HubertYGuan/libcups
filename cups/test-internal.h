@@ -29,18 +29,21 @@
 #  define TEST_H
 #  include <stdio.h>
 #  include <stdlib.h>
-#  include <stdarg.h>
+#  include <zephyr/sys/cbprintf.h>
 #  include <stdbool.h>
 #  include <string.h>
 #  if _WIN32
 #    define isatty(f) _isatty(f)
 #  else
 #    include <unistd.h>
+#    include <zephyr/fs/fs.h>
 #  endif // !_WIN32
+#  include "zephyr-compat.h"
+#  include <zephyr/logging/log.h>
+#  include "cups.h"
 #  ifdef __cplusplus
 extern "C" {
 #  endif // __cplusplus
-#  include "zephyr-compat.h"
 
 //
 // This header implements a simple unit test framework for C/C++ programs.
@@ -99,22 +102,20 @@ static char test_title[1024] = "";	// Current test title
 static inline void
 testBegin(const char *title, ...)	// I - printf-style title string
 {
+  LOG_MODULE_DECLARE(libcups);
   va_list	ap;			// Pointer to additional arguments
 
 
   // Format the title string
   va_start(ap, title);
-  vsnprintf(test_title, sizeof(test_title), title, ap);
+  vsnprintfcb(test_title, sizeof(test_title), title, ap);
   va_end(ap);
 
   // Send the title to stdout and stderr...
   test_progress = 0;
 
-  printf("%s: ", test_title);
-  fflush(stdout);
-
-  if (!isatty(2))
-    fprintf(stderr, "%s: ", test_title);
+  LOG_INF("%s: \n", test_title);
+  // fflush(NULL);
 }
 
 
@@ -122,16 +123,15 @@ testBegin(const char *title, ...)	// I - printf-style title string
 static inline void
 testEnd(bool pass)			// I - `true` if the test passed, `false` otherwise
 {
+  LOG_MODULE_DECLARE(libcups);
   // Send the test result to stdout and stderr
   if (test_progress)
-    putchar('\b');
+    LOG_INF("\b");
 
   if (!pass)
     testsPassed = false;
 
-  puts(pass ? "PASS" : "FAIL");
-  if (!isatty(2))
-    fputs(pass ? "PASS\n" : "FAIL\n", stderr);
+  LOG_INF("%s", pass ? "PASS" : "FAIL");
 
   test_title[0] = '\0';
 }
@@ -142,22 +142,23 @@ static inline void
 testEndMessage(bool       pass,		// I - `true` if the test passed, `false` otherwise
                const char *message, ...)// I - printf-style message
 {
+  LOG_MODULE_DECLARE(libcups);
   char		buffer[1024];		// Formatted title string
   va_list	ap;			// Pointer to additional arguments
 
 
   // Format the title string
   va_start(ap, message);
-  vsnprintf(buffer, sizeof(buffer), message, ap);
+  vsnprintfcb(buffer, sizeof(buffer), message, ap);
   va_end(ap);
 
   // Send the test result to stdout and stderr
-  if (test_progress)
-    putchar('\b');
-
-  printf(pass ? "PASS (%s)\n" : "FAIL (%s)\n", buffer);
-  if (!isatty(2))
-    fprintf(stderr, pass ? "PASS (%s)\n" : "FAIL (%s)\n", buffer);
+  /* if (test_progress)
+    putchar('\b'); */
+  if (pass)
+    LOG_INF("PASS (%s)\n", buffer);
+  else
+    LOG_INF("FAIL (%s)\n", buffer);
 
   test_title[0] = '\0';
 }
@@ -167,10 +168,14 @@ testEndMessage(bool       pass,		// I - `true` if the test passed, `false` other
 static inline void
 testProgress(void)
 {
+  LOG_MODULE_DECLARE(libcups);
   if (test_progress)
-    putchar('\b');
-  putchar("-\\|/"[test_progress & 3]);
-  fflush(stdout);
+    LOG_INF("\b");
+  char chthing[2];
+  chthing[0] = "-\\|/"[test_progress & 3];
+  chthing[1] = '\0';
+  LOG_INF("%s", chthing);
+  // fflush(stdout);
 
   test_progress ++;
 }
@@ -180,20 +185,21 @@ testProgress(void)
 static inline void
 testError(const char *error, ...)	// I - printf-style error string
 {
+  LOG_MODULE_DECLARE(libcups);
   char		buffer[1024];		// Formatted title string
   va_list	ap;			// Pointer to additional arguments
 
 
   // Format the error string
   va_start(ap, error);
-  vsnprintf(buffer, sizeof(buffer), error, ap);
+  vsnprintfcb(buffer, sizeof(buffer), error, ap);
   va_end(ap);
 
   // Send the error to stderr...
-  fprintf(stderr, "%s\n", buffer);
+  LOG_ERR("%s\n", buffer);
 
   if (test_title[0])
-    fprintf(stderr, "%s: ", test_title);
+    LOG_ERR("%s: ", test_title);
 }
 
 
@@ -201,29 +207,22 @@ testError(const char *error, ...)	// I - printf-style error string
 static inline void
 testMessage(const char *error, ...)	// I - printf-style error string
 {
+  LOG_MODULE_DECLARE(libcups);
   char		buffer[1024];		// Formatted title string
   va_list	ap;			// Pointer to additional arguments
 
 
   // Format the error string
   va_start(ap, error);
-  vsnprintf(buffer, sizeof(buffer), error, ap);
+  vsnprintfcb(buffer, sizeof(buffer), error, ap);
   va_end(ap);
 
   // Send the message to stdout and stderr too if needed...
-  printf("%s\n", buffer);
+  LOG_INF("%s\n", buffer);
   if (test_title[0])
   {
-    printf("%s: ", test_title);
-    fflush(stdout);
-  }
-
-  if (!isatty(2))
-  {
-    fprintf(stderr, "%s\n", buffer);
-
-    if (test_title[0])
-      fprintf(stderr, "%s: ", test_title);
+    LOG_INF("%s: ", test_title);
+    // fflush(stdout);
   }
 }
 
@@ -233,6 +232,7 @@ static inline void
 testHexDump(const unsigned char *buffer,// I - Buffer
             size_t              bytes)	// I - Number of bytes
 {
+  LOG_MODULE_DECLARE(libcups);
   size_t	i, j;			// Looping vars
   int		ch;			// Current ASCII char
 
