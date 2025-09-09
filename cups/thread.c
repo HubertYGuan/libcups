@@ -10,6 +10,7 @@
 
 #include "cups-private.h"
 #include "thread.h"
+#include <zephyr/logging/log.h>
 
 
 //
@@ -594,12 +595,15 @@ cupsThreadCreate(
     void               *arg)		// I - Entry point context
 {
   pthread_t thread;			// Thread
-
+  LOG_MODULE_DECLARE(libcups);
 
   if (pthread_create(&thread, NULL, (void *(*)(void *))func, arg))
     return (CUPS_THREAD_INVALID);
   else
+  {
+    LOG_INF("Successfully created thread");
     return (thread);
+  }
 }
 
 
@@ -610,7 +614,10 @@ cupsThreadCreate(
 void
 cupsThreadDetach(cups_thread_t thread)// I - Thread ID
 {
+  LOG_MODULE_DECLARE(libcups);
+  LOG_INF("Detaching thread");
   pthread_detach(thread);
+  LOG_INF("Detached thread");
 }
 
 

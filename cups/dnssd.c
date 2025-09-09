@@ -1510,7 +1510,6 @@ cupsDNSSDServiceAdd(
     struct dns_sd_rec *temp;
     DNS_SD_GET(cups_dnssd_service_count, &temp);
     service->dnssd->ref = temp;
-    dnssd_ports[cups_dnssd_service_count] = port;
     service->refs[service->num_refs] = *service->dnssd->ref;
     ++cups_dnssd_service_count;
   }

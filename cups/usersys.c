@@ -28,6 +28,8 @@
 
 #define O_NOFOLLOW 0
 
+#include <zephyr/logging/log.h>
+
 //
 // Local constants...
 //
@@ -125,7 +127,7 @@ static const char * const uatokens[] =// UserAgentTokens values
   "OS",
   "Full"
 };
-#ifdef DEBUG
+
 static const char * const tls_versions[] =
 {					// TLS/SSL version numbers
   "SSL3.0",
@@ -135,7 +137,6 @@ static const char * const tls_versions[] =
   "TLS1.3",
   "TLS1.3"
 };
-#endif // DEBUG
 
 
 //
@@ -653,7 +654,8 @@ _cupsSetDefaults(void)
   char		filename[1024];		// Filename
   _cups_client_conf_t cc;		// client.conf values
   _cups_globals_t *cg = _cupsGlobals();	// Pointer to library globals
-#ifdef DEBUG
+  LOG_MODULE_DECLARE(libcups);
+
   static const char * const encryptions[] =
   {					// Encryption values
     "IfRequested",
@@ -661,18 +663,19 @@ _cupsSetDefaults(void)
     "Required",
     "Always"
   };
-#endif // DEBUG
 
 
-  DEBUG_puts("_cupsSetDefaults()");
+  LOG_INF("_cupsSetDefaults()");
 
   // Load initial client.conf values...
   cups_init_client_conf(&cc);
-
+  LOG_INF("Initiated client conf: %p, cg: %p", &cc, cg);
   // Read the /etc/cups/client.conf and ~/.cups/client.conf files, if present.
   snprintf(filename, sizeof(filename), "%s/client.conf", cg->sysconfig);
+  LOG_INF("Opening sysconfig file: %s", filename);
   if ((fp = cupsFileOpen(filename, "r")) != NULL)
   {
+    LOG_INF("Reading client conf");
     cups_read_client_conf(fp, &cc);
     cupsFileClose(fp);
   }
@@ -681,14 +684,16 @@ _cupsSetDefaults(void)
   {
     // Look for client.conf...
     snprintf(filename, sizeof(filename), "%s/client.conf", cg->userconfig);
-
+    LOG_INF("Opening userconfig file: %s", filename);
     if ((fp = cupsFileOpen(filename, "r")) != NULL)
     {
+      LOG_INF("Reading client conf");
       cups_read_client_conf(fp, &cc);
       cupsFileClose(fp);
     }
   }
 
+  LOG_INF("Finalizing client conf");
   // Finalize things so every client.conf value is set...
   cups_finalize_client_conf(&cc);
 
@@ -718,14 +723,14 @@ _cupsSetDefaults(void)
   if (cg->validate_certs < 0)
     cg->validate_certs = cc.validate_certs;
 
-  DEBUG_printf("1_cupsSetDefaults: BrowseDomains %s", cc.browse_domains);
+  LOG_INF("1_cupsSetDefaults: BrowseDomains %s", cc.browse_domains);
 
   if (!strcmp(cc.browse_domains, "none"))
     cg->browse_domains = cupsArrayNewStrings(/*s*/NULL, /*delim*/'\0');
   else if (strcmp(cc.browse_domains, "all") && cc.browse_domains[0])
     cg->browse_domains = cupsArrayNewStrings(cc.browse_domains, /*delim*/',');
 
-  DEBUG_printf("1_cupsSetDefaults: FilterLocation %s", cc.filter_location);
+  LOG_INF("1_cupsSetDefaults: FilterLocation %s", cc.filter_location);
 
   if (cc.filter_location[0] == '/')
   {
@@ -789,7 +794,7 @@ _cupsSetDefaults(void)
     }
   }
 
-  DEBUG_printf("1_cupsSetDefaults: FilterType %s", cc.filter_type);
+  LOG_INF("1_cupsSetDefaults: FilterType %s", cc.filter_type);
   if (cc.filter_type[0] && strcmp(cc.filter_type, "any"))
   {
     char	*ptr,			// Pointer into type value
@@ -885,23 +890,23 @@ _cupsSetDefaults(void)
       else
       {
         // Something we don't understand...
-        DEBUG_printf("2_cupsSetDefaults: Unknown FilterType '%s'.", ptr);
+        LOG_INF("2_cupsSetDefaults: Unknown FilterType '%s'.", ptr);
       }
     }
   }
 
-  DEBUG_printf("1_cupsSetDefaults: FilterType value 0x%x mask 0x%x", cg->filter_type, cg->filter_type_mask);
+  LOG_INF("1_cupsSetDefaults: FilterType value 0x%x mask 0x%x", cg->filter_type, cg->filter_type_mask);
 
-  DEBUG_printf("1_cupsSetDefaults: AllowAnyRoot %s", cg->any_root ? "Yes" : "No");
-  DEBUG_printf("1_cupsSetDefaults: AllowExpiredCerts %s", cg->expired_certs ? "Yes" : "No");
-  DEBUG_printf("1_cupsSetDefaults: DigestOptions %s", cg->digestoptions == _CUPS_DIGESTOPTIONS_DENYMD5 ? "DenyMD5" : "None");
-  DEBUG_printf("1_cupsSetDefaults: Encryption %s", encryptions[cg->encryption]);
-  DEBUG_printf("1_cupsSetDefaults: ServerName %s", cg->servername);
-  DEBUG_printf("1_cupsSetDefaults: SSLOptions%s%s%s%s Min%s Max%s", cc.ssl_options == _HTTP_TLS_NONE ? " none" : "", (cc.ssl_options & _HTTP_TLS_ALLOW_RC4) ? " AllowRC4" : "", (cc.ssl_options & _HTTP_TLS_ALLOW_DH) ? " AllowDH" : "", (cc.ssl_options & _HTTP_TLS_DENY_CBC) ? " DenyCBC" : "", tls_versions[cc.ssl_min_version], tls_versions[cc.ssl_max_version]);
-  DEBUG_printf("1_cupsSetDefaults: TrustOnFirstUse %s", cg->trust_first ? "Yes" : "No");
-  DEBUG_printf("1_cupsSetDefaults: User %s", cg->user);
-  DEBUG_printf("1_cupsSetDefaults: UserAgentTokens %s", uatokens[cg->uatokens]);
-  DEBUG_printf("1_cupsSetDefaults: ValidateCerts %s", cg->validate_certs ? "Yes" : "No");
+  LOG_INF("1_cupsSetDefaults: AllowAnyRoot %s", cg->any_root ? "Yes" : "No");
+  LOG_INF("1_cupsSetDefaults: AllowExpiredCerts %s", cg->expired_certs ? "Yes" : "No");
+  LOG_INF("1_cupsSetDefaults: DigestOptions %s", cg->digestoptions == _CUPS_DIGESTOPTIONS_DENYMD5 ? "DenyMD5" : "None");
+  LOG_INF("1_cupsSetDefaults: Encryption %s", encryptions[cg->encryption]);
+  LOG_INF("1_cupsSetDefaults: ServerName %s", cg->servername);
+  LOG_INF("1_cupsSetDefaults: SSLOptions%s%s%s%s Min%s Max%s", cc.ssl_options == _HTTP_TLS_NONE ? " none" : "", (cc.ssl_options & _HTTP_TLS_ALLOW_RC4) ? " AllowRC4" : "", (cc.ssl_options & _HTTP_TLS_ALLOW_DH) ? " AllowDH" : "", (cc.ssl_options & _HTTP_TLS_DENY_CBC) ? " DenyCBC" : "", tls_versions[cc.ssl_min_version], tls_versions[cc.ssl_max_version]);
+  LOG_INF("1_cupsSetDefaults: TrustOnFirstUse %s", cg->trust_first ? "Yes" : "No");
+  LOG_INF("1_cupsSetDefaults: User %s", cg->user);
+  LOG_INF("1_cupsSetDefaults: UserAgentTokens %s", uatokens[cg->uatokens]);
+  LOG_INF("1_cupsSetDefaults: ValidateCerts %s", cg->validate_certs ? "Yes" : "No");
 
   _httpTLSSetOptions(cc.ssl_options | _HTTP_TLS_SET_DEFAULT, cc.ssl_min_version, cc.ssl_max_version);
 
@@ -1039,7 +1044,7 @@ cups_finalize_client_conf(
     if ((dbus = dbus_bus_get(DBUS_BUS_SESSION, &error)) == NULL)
     {
       // Error
-      DEBUG_printf("4cups_finalize_client_conf: Unable to get session bus for cups-locald (%s %s)", error.name, error.message);
+      LOG_INF("4cups_finalize_client_conf: Unable to get session bus for cups-locald (%s %s)", error.name, error.message);
       dbus_error_free(&error);
     }
     else
@@ -1047,11 +1052,11 @@ cups_finalize_client_conf(
       // Try sending a GetSocket method call...
       if ((request = dbus_message_new_method_call(NULL, "/org/openprinting/cupslocald", "org.openprinting.cupslocald", "GetSocket")) == NULL)
       {
-	DEBUG_printf("4cups_finalize_client_conf: Unable to create D-Bus method call: %s", strerror(errno));
+	LOG_INF("4cups_finalize_client_conf: Unable to create D-Bus method call: %s", strerror(errno));
       }
       else if ((response = dbus_connection_send_with_reply_and_block(dbus, request, 2000, &error)) == NULL)
       {
-	DEBUG_printf("4cups_finalize_client_conf: Unable to get response from cups-locald (%s %s)", error.name, error.message);
+	LOG_INF("4cups_finalize_client_conf: Unable to get response from cups-locald (%s %s)", error.name, error.message);
 	dbus_error_free(&error);
       }
       else
@@ -1109,35 +1114,11 @@ cups_finalize_client_conf(
     size = sizeof(cc->user);
     if (!GetUserNameA(cc->user, &size))
 #else
-    // Try the USER environment variable as the default username...
-    const char *envuser = getenv("USER");	// Default username
-    struct passwd pw;				// Account information
-    struct passwd *result = NULL;		// Auxiliary pointer
-    _cups_globals_t *cg = _cupsGlobals();	// Pointer to library globals
 
-    if (envuser)
-    {
-      // Validate USER matches the current UID, otherwise don't allow it to
-      // override things.  This makes sure that printing after doing su or sudo
-      // records the correct username.
-      getpwnam_r(envuser, &pw, cg->pw_buf, PW_BUF_SIZE, &result);
-      if (result && pw.pw_uid != getuid())
-        result = NULL;
-    }
-
-    if (!result)
-      getpwuid_r(getuid(), &pw, cg->pw_buf, PW_BUF_SIZE, &result);
-
-    if (result)
-    {
-      cupsCopyString(cc->user, pw.pw_name, sizeof(cc->user));
-    }
-    else
 #endif // _WIN32
-    {
-      // Use the default "unknown" user name...
-      cupsCopyString(cc->user, "unknown", sizeof(cc->user));
-    }
+    // Use the default "unknown" user name...
+    cupsCopyString(cc->user, "unknown", sizeof(cc->user));
+    
   }
 
   if (cc->validate_certs < 0)

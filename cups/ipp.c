@@ -14,7 +14,8 @@
 #ifdef _WIN32
 #  include <io.h>
 #endif // _WIN32
-
+#include <zephyr/logging/log.h>
+#include <zephyr/kernel.h>
 
 //
 // Local functions...
@@ -2355,6 +2356,7 @@ ippGetVersion(ipp_t *ipp,		// I - IPP message
 ipp_t *					// O - New IPP message
 ippNew(void)
 {
+  LOG_MODULE_DECLARE(libcups);
   ipp_t			*temp;		// New IPP message
   _cups_globals_t	*cg = _cupsGlobals();
 					// Global data
@@ -2365,18 +2367,20 @@ ippNew(void)
   if ((temp = (ipp_t *)calloc(1, sizeof(ipp_t))) != NULL)
   {
     // Set default version - usually 2.0...
-    DEBUG_printf("4debug_alloc: %p IPP message", (void *)temp);
+    LOG_INF("4debug_alloc: %p IPP message, %p", (void *)temp, cg);
 
     if (!cg->client_conf_loaded)
+    LOG_INF("Setting Defaults");
       _cupsSetDefaults();
 
+    LOG_INF("setting temp params");
     temp->request.any.version[0] = (ipp_uchar_t)(cg->server_version / 10);
     temp->request.any.version[1] = (ipp_uchar_t)(cg->server_version % 10);
     temp->use                    = 1;
     temp->find                   = temp->fstack;
   }
 
-  DEBUG_printf("1ippNew: Returning %p", (void *)temp);
+  LOG_INF("1ippNew: Returning %p", (void *)temp);
 
   return (temp);
 }

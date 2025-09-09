@@ -98,11 +98,8 @@ typedef void (*cups_dnssd_service_cb_t)(cups_dnssd_service_t *service, void *cb_
 // Globals...
 //
 #ifdef HAVE_ZEPHYR_MDNS
-// You need to change the appropriate port here to your printer's port every time you register your printer
-static uint16_t dnssd_ports[3] = {0};
-DNS_SD_REGISTER_SERVICE(cups_service_0, "Printer with Zephyr", "_ipp", "_tcp", "local", DNS_SD_EMPTY_TXT /*need to move to RAM to allow changing this txt record*/, &dnssd_ports[0]);
-DNS_SD_REGISTER_SERVICE(cups_service_1, "Printer with Zephyr 1", "_ipp", "_tcp", "local", DNS_SD_EMPTY_TXT /*need to move to RAM to allow changing this txt record*/, &dnssd_ports[1]);
-DNS_SD_REGISTER_SERVICE(cups_service_2, "Printer with Zephyr 2", "_ipp", "_tcp", "local", DNS_SD_EMPTY_TXT /*need to move to RAM to allow changing this txt record*/, &dnssd_ports[2]);
+// Use this macro to register your printer services (not cupsDNSSDServiceAdd)
+#define CUPS_DNSSD_SERVICE_REGISTER(_id, _instance, _service, _text, _port) DNS_SD_REGISTER_TCP_SERVICE(_id, _instance, _service, "local", _text, _port)
 #endif // HAVE_ZEPHYR_MDNS
 
 //

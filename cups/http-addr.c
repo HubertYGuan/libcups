@@ -346,13 +346,13 @@ addr->un.sun_path, strerror(errno));
     {
       // Save the current umask and set it to 0 so that all users can access
       // the domain socket...
-      mask = umask(0);
+      // mask = umask(0);
 
       // Bind the domain socket...
       status = bind(fd, (struct sockaddr *)addr, (socklen_t)httpAddrGetLength(addr));
 
       // Restore the umask and fix permissions...
-      umask(mask);
+      // umask(mask);
     }
   }
   else

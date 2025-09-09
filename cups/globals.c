@@ -13,12 +13,10 @@
 #ifndef _WIN32
 #  include <pwd.h>
 #endif // !_WIN32
-
-
-//
-// Local globals...
-//
-
+#include <strings.h>
+#include <zephyr/logging/log.h>
+#include <assert.h>
+#include <zephyr/kernel.h>
 #ifdef DEBUG
 static int		cups_global_index = 0;
 					// Next thread number
@@ -31,7 +29,6 @@ static pthread_once_t	cups_globals_key_once = PTHREAD_ONCE_INIT;
 #endif // !_WIN32
 static cups_mutex_t	cups_global_mutex = CUPS_MUTEX_INITIALIZER;
 					// Global critical section
-
 
 //
 // Local functions...
@@ -65,6 +62,7 @@ _cupsGlobalLock(void)
 _cups_globals_t *			// O - Pointer to global data
 _cupsGlobals(void)
 {
+  LOG_MODULE_DECLARE(libcups);
   _cups_globals_t *cg;			// Pointer to global data
 
 
@@ -76,11 +74,18 @@ _cupsGlobals(void)
   // See if we have allocated the data yet...
   if ((cg = (_cups_globals_t *)cupsThreadGetData(cups_globals_key)) == NULL)
   {
+    LOG_INF("Allocating globals");
     // No, allocate memory as set the pointer for the key...
     if ((cg = cups_globals_alloc()) != NULL)
-      cupsThreadSetData(cups_globals_key, cg);
+    {
+      int threadseterr = cupsThreadSetData(cups_globals_key, cg);
+      LOG_INF("Thread set data: %d", threadseterr);
+    }
+    else
+    {
+      exit(1);
+    }
   }
-
   // Return the pointer to the data...
   return (cg);
 }
@@ -153,6 +158,7 @@ DllMain(HINSTANCE hinst,		// I - DLL module handle
 static _cups_globals_t *		// O - Pointer to global data
 cups_globals_alloc(void)
 {
+  LOG_MODULE_DECLARE(libcups);
   const char	*cups_userconfig = getenv("CUPS_USERCONFIG");
 					// Location of user config files
   _cups_globals_t *cg = calloc(1, sizeof(_cups_globals_t));
@@ -170,7 +176,10 @@ cups_globals_alloc(void)
 
 
   if (!cg)
+  {
+    LOG_INF("could not calloc cg: size %u", sizeof(_cups_globals_t));
     return (NULL);
+  }
 
   // Clear the global storage and set the default encryption and password callback values...
   memset(cg, 0, sizeof(_cups_globals_t));
@@ -304,19 +313,8 @@ cups_globals_alloc(void)
 #  ifdef __APPLE__
   if (!home)
 #else
-  if (!home && !xdg_config_home)
+  // pw not supported by Zephyr
 #  endif // __APPLE__
-  {
-    struct passwd	pw;		// User info
-    struct passwd	*result;	// Auxiliary pointer
-
-    getpwuid_r(getuid(), &pw, cg->pw_buf, PW_BUF_SIZE, &result);
-    if (result)
-    {
-      cupsCopyString(homedir, pw.pw_dir, sizeof(homedir));
-      home = homedir;
-    }
-  }
 
 #  ifdef __APPLE__
   if (home)
@@ -351,7 +349,7 @@ cups_globals_alloc(void)
   else
   {
     // Something went wrong, use temporary directory...
-    snprintf(temp, sizeof(temp), "/tmp/cups%u", (unsigned)getuid());
+    snprintf(temp, sizeof(temp), "/lfs/cups%u", (unsigned)getuid());
   }
 #  endif // __APPLE__
 
@@ -417,7 +415,9 @@ cups_globals_free(_cups_globals_t *cg)	// I - Pointer to global data
 static void
 cups_globals_init(void)
 {
+  LOG_MODULE_DECLARE(libcups);
   // Register the global data for this thread...
   pthread_key_create(&cups_globals_key, (void (*)(void *))cups_globals_free);
+  LOG_INF("Created key: %p", &cups_globals_key);
 }
 #endif // !_WIN32

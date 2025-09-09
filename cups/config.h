@@ -37,8 +37,8 @@
 //       variables at run-time...
 //
 
-#define CUPS_DATADIR "/lfs/usr/local/share/libcups3"
-#define CUPS_SERVERROOT "/lfs/usr/local/etc/cups"
+#define CUPS_DATADIR "/lfs/libcups3"
+#define CUPS_SERVERROOT "/lfs/cups"
 
 
 //
