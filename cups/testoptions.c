@@ -19,7 +19,7 @@
 void					// O - Exit status
 testoptions_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
-  LOG_MODULE_DECLARE(libcups);
+  
   int		status = 0;		// Exit status
   size_t	num_options;		// Number of options
   cups_option_t	*options;		// Options

@@ -3,3 +3,14 @@ config LIBCUPS
 	select MBEDTLS
 	help
 	  This option enables libcups as a Zephyr module.
+
+config CUPS_USE_EXTERNAL_HEAP
+	bool "Enable external heap usage"
+	help
+		This option defines CUPS_LARGE_MALLOC to use external memory through the shared multi heap.
+
+config CUPS_THREAD_SIZE
+	int "Default cups thread stack size"
+	default 32768
+	help
+		Sets the default thread stack size used in cupsThreadCreate

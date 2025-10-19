@@ -12,6 +12,7 @@
 #include <cups/cups.h>
 #include "string-private.h"
 #include "debug-internal.h"
+#include "cups-private.h"
 
 
 //
@@ -627,8 +628,16 @@ cupsArrayNew(cups_array_cb_t  f,	// I - Comparison callback function or `NULL` f
 
 
   // Allocate memory for the array...
-  if ((a = calloc(1, sizeof(cups_array_t))) == NULL)
-    return (NULL);
+  if (ff != (cups_afree_cb_t)CUPS_LARGE_FREE)
+  {
+    if ((a = calloc(1, sizeof(cups_array_t))) == NULL)
+      return (NULL);
+  }
+  else
+  {
+    if ((a = CUPS_LARGE_CALLOC(1, sizeof(cups_array_t))) == NULL)
+      return (NULL);
+  }
 
   a->compare   = f;
   a->data      = d;
@@ -653,8 +662,14 @@ cupsArrayNew(cups_array_cb_t  f,	// I - Comparison callback function or `NULL` f
   }
 
   a->copyfunc = cf;
-  a->freefunc = ff;
-
+  if (ff)
+  {
+    a->freefunc = ff;
+  }
+  else
+  {
+    a->freefunc = (cups_afree_cb_t)CUPS_LARGE_FREE;
+  }
   return (a);
 }
 

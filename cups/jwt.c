@@ -2473,7 +2473,7 @@ int mbedtls_mpi_write_base64(mbedtls_mpi *mpi, char *buffer, size_t bufsize)
   {
     char error_str[256];
     mbedtls_strerror(ret, error_str, sizeof(error_str));
-    DEBUG_printf("Failed to write binary from mpi: %s\n");
+    DEBUG_printf("Failed to write binary from mpi\n");
     return ret;
   }
   while (*start == 0)

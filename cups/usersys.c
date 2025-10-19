@@ -470,12 +470,12 @@ cupsSetUserAgent(const char *user_agent)// I - User-Agent string or `NULL`
 #endif // _WIN32
 
 
-  DEBUG_printf("cupsSetUserAgent(\"%s\")", user_agent);
+  DEBUG_printf("cupsSetUserAgent(\"%s\")", user_agent ? user_agent : "");
 
   if (user_agent)
   {
     cupsCopyString(cg->user_agent, user_agent, sizeof(cg->user_agent));
-    DEBUG_printf("1cupsSetUserAgent: user_agent=\"%s\"", cg->user_agent);
+    DEBUG_printf("1cupsSetUserAgent: user_agent=\"%s\"", cg && cg->user_agent ? cg->user_agent : "");
     return;
   }
 
@@ -503,7 +503,7 @@ cupsSetUserAgent(const char *user_agent)// I - User-Agent string or `NULL`
 	  break;
     }
 
-    DEBUG_printf("1cupsSetUserAgent: user_agent=\"%s\"", cg->user_agent);
+    DEBUG_printf("1cupsSetUserAgent: user_agent=\"%s\"", cg && cg->user_agent ? cg->user_agent : "");
     return;
   }
 
@@ -586,7 +586,7 @@ cupsSetUserAgent(const char *user_agent)// I - User-Agent string or `NULL`
     snprintf(cg->user_agent, sizeof(cg->user_agent), "CUPS/" LIBCUPS_VERSION " (%s %s; %s) IPP/2.0", name.sysname, name.release, name.machine);
 #endif // _WIN32
 
-  DEBUG_printf("1cupsSetUserAgent: user_agent=\"%s\"", cg->user_agent);
+  DEBUG_printf("1cupsSetUserAgent: user_agent=\"%s\"", cg && cg->user_agent ? cg->user_agent : "");
 }
 
 
@@ -625,7 +625,7 @@ cupsGetUserAgent(void)
   if (!cg->user_agent[0])
     cupsSetUserAgent(NULL);
 
-  DEBUG_printf("1cupsGetUserAgent: Returning \"%s\".", cg->user_agent);
+  DEBUG_printf("1cupsGetUserAgent: Returning \"%s\".", cg && cg->user_agent ? cg->user_agent : "");
 
   return (cg->user_agent);
 }
@@ -654,7 +654,7 @@ _cupsSetDefaults(void)
   char		filename[1024];		// Filename
   _cups_client_conf_t cc;		// client.conf values
   _cups_globals_t *cg = _cupsGlobals();	// Pointer to library globals
-  LOG_MODULE_DECLARE(libcups);
+  
 
   static const char * const encryptions[] =
   {					// Encryption values
@@ -1442,7 +1442,7 @@ cups_set_ssl_options(
   cc->ssl_max_version = max_version;
   cc->ssl_min_version = min_version;
 
-  DEBUG_printf("4cups_set_ssl_options(cc=%p, value=\"%s\") options=%x, min_version=%d, max_version=%d", (void *)cc, value, options, min_version, max_version);
+  DEBUG_printf("4cups_set_ssl_options(cc=%p, value=\"%s\") options=%x, min_version=%d, max_version=%d", (void *)cc, value ? value : "", options, min_version, max_version);
 }
 
 

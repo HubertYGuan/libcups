@@ -88,7 +88,7 @@ zephyr_include_directories(.)
 zephyr_library_sources( ${LIBCUPS_SRCS} ${LIBCUPS_TEST_SRCS} )
 zephyr_library_link_libraries(mbedTLSCrypto mbedTLSX509 mbedTLSBase)
 
-zephyr_library_compile_options(-D_CUPS_SOURCE  -D_THREAD_SAFE -D_REENTRANT -D_REENTRANT -D_FORTIFY_SOURCE=3 -D__USE_MISC -D_GNU_SOURCE -fPIC  -g -Os -Wall -Wunused -Wno-char-subscripts -Wno-deprecated-declarations -Wno-format-truncation -Wno-format-y2k -Wno-switch -Wno-unused-result #[[-DDEBUG]])
+zephyr_library_compile_options(-D_CUPS_SOURCE  -D_THREAD_SAFE -D_REENTRANT -D_REENTRANT -D_FORTIFY_SOURCE=3 -D__USE_MISC -D_GNU_SOURCE -fPIC  -g -Os -Wall -Wunused -Wno-char-subscripts -Wno-deprecated-declarations -Wno-format-truncation -Wno-format-y2k -Wno-switch -Wno-unused-result -DDEBUG)
 
 zephyr_library_compile_options(-U_POSIX_C_SOURCE -D_POSIX_C_SOURCE=200809L)
 

@@ -62,7 +62,7 @@ _cupsGlobalLock(void)
 _cups_globals_t *			// O - Pointer to global data
 _cupsGlobals(void)
 {
-  LOG_MODULE_DECLARE(libcups);
+  
   _cups_globals_t *cg;			// Pointer to global data
 
 
@@ -83,6 +83,7 @@ _cupsGlobals(void)
     }
     else
     {
+      LOG_INF("cg error: cups_global_alloc failed");
       exit(1);
     }
   }
@@ -158,7 +159,7 @@ DllMain(HINSTANCE hinst,		// I - DLL module handle
 static _cups_globals_t *		// O - Pointer to global data
 cups_globals_alloc(void)
 {
-  LOG_MODULE_DECLARE(libcups);
+  
   const char	*cups_userconfig = getenv("CUPS_USERCONFIG");
 					// Location of user config files
   _cups_globals_t *cg = calloc(1, sizeof(_cups_globals_t));
@@ -415,7 +416,7 @@ cups_globals_free(_cups_globals_t *cg)	// I - Pointer to global data
 static void
 cups_globals_init(void)
 {
-  LOG_MODULE_DECLARE(libcups);
+  
   // Register the global data for this thread...
   pthread_key_create(&cups_globals_key, (void (*)(void *))cups_globals_free);
   LOG_INF("Created key: %p", &cups_globals_key);

@@ -154,7 +154,7 @@ cupsSaveCredentials(
 
 
   // Validate input...
-  DEBUG_printf("cupsSaveCredentials(path=\"%s\", common_name=\"%s\", credentials=%p(%u), key=%p(%u))", path, common_name, credentials, credentials ? (unsigned)strlen(credentials) : 0, key, key ? (unsigned)strlen(key) : 0);
+  DEBUG_printf("cupsSaveCredentials(path=\"%s\", common_name=\"%s\", credentials=%p(%u), key=%p(%u))", path ? path : "", common_name ? common_name : "", credentials, credentials ? (unsigned)strlen(credentials) : 0, key, key ? (unsigned)strlen(key) : 0);
 
   if (!path)
     path = http_default_path(defpath, sizeof(defpath));
@@ -184,9 +184,9 @@ cupsSaveCredentials(
   http_make_path(keyfile, sizeof(keyfile), path, common_name, "key");
   http_make_path(ktmfile, sizeof(ktmfile), path, common_name, "ktm");
 
-  DEBUG_printf("1cupsSaveCredentials: crtfile=\"%s\"", crtfile);
-  DEBUG_printf("1cupsSaveCredentials: keyfile=\"%s\"", keyfile);
-  DEBUG_printf("1cupsSaveCredentials: ktmfile=\"%s\"", ktmfile);
+  DEBUG_printf("1cupsSaveCredentials: crtfile=\"%s\"", crtfile ? crtfile : "");
+  DEBUG_printf("1cupsSaveCredentials: keyfile=\"%s\"", keyfile ? keyfile : "");
+  DEBUG_printf("1cupsSaveCredentials: ktmfile=\"%s\"", ktmfile ? ktmfile : "");
 
   if (!credentials && !key)
   {
@@ -206,8 +206,8 @@ cupsSaveCredentials(
     // Missing key file...
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), false);
 
-    DEBUG_printf("1cupsSaveCredentials: access(\"%s\", 0)=%d", keyfile, access(keyfile, 0));
-    DEBUG_printf("1cupsSaveCredentials: access(\"%s\", 0)=%d", ktmfile, access(ktmfile, 0));
+    DEBUG_printf("1cupsSaveCredentials: access(\"%s\", 0)=%d", keyfile ? keyfile : "", access(keyfile, 0));
+    DEBUG_printf("1cupsSaveCredentials: access(\"%s\", 0)=%d", ktmfile ? ktmfile : "", access(ktmfile, 0));
   }
   else if (http_save_file(path, common_name, "crt", credentials))
   {
@@ -220,7 +220,7 @@ cupsSaveCredentials(
     {
       _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), false);
 
-      DEBUG_printf("1cupsSaveCredentials: rename(\"%s\", \"%s\") failed.", ktmfile, keyfile);
+      DEBUG_printf("1cupsSaveCredentials: rename(\"%s\", \"%s\") failed.", ktmfile ? ktmfile : "", keyfile ? keyfile : "");
     }
     else
     {
@@ -248,7 +248,7 @@ cupsSetServerCredentials(
   char	temp[1024];			// Default path buffer
 
 
-  DEBUG_printf("cupsSetServerCredentials(path=\"%s\", common_name=\"%s\", auto_create=%d)", path, common_name, auto_create);
+  DEBUG_printf("cupsSetServerCredentials(path=\"%s\", common_name=\"%s\", auto_create=%d)", path ? path : "", common_name ? common_name : "", auto_create);
 
   // Use defaults as needed...
   if (!path)

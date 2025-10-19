@@ -654,13 +654,13 @@ httpGetDateTime(const char *s)		// I - Date/time string
 		{ 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 };
 
 
-  DEBUG_printf("2httpGetDateTime(s=\"%s\")", s);
+  DEBUG_printf("2httpGetDateTime(s=\"%s\")", s ? s : "");
 
   // Extract the date and time from the formatted string...
   if (sscanf(s, "%*s%d%15s%d%d:%d:%d", &day, mon, &year, &hour, &min, &sec) < 6)
     return (0);
 
-  DEBUG_printf("4httpGetDateTime: day=%d, mon=\"%s\", year=%d, hour=%d, min=%d, sec=%d", day, mon, year, hour, min, sec);
+  DEBUG_printf("4httpGetDateTime: day=%d, mon=\"%s\", year=%d, hour=%d, min=%d, sec=%d", day, mon ? mon : "", year, hour, min, sec);
 
   // Check for invalid year (RFC 7231 says it's 4DIGIT)
   if (year > 9999)
@@ -1003,7 +1003,7 @@ _httpSetDigestAuthString(
   _cups_globals_t *cg = _cupsGlobals();	// Per-thread globals
 
 
-  DEBUG_printf("2_httpSetDigestAuthString(http=%p, nonce=\"%s\", method=\"%s\", resource=\"%s\")", (void *)http, nonce, method, resource);
+  DEBUG_printf("2_httpSetDigestAuthString(http=%p, nonce=\"%s\", method=\"%s\", resource=\"%s\")", (void *)http, nonce ? nonce : "", method ? method : "", resource ? resource : "");
 
   if (nonce && *nonce && strcmp(nonce, http->nonce))
   {
@@ -1517,7 +1517,7 @@ httpResolveURI(
 #endif // DEBUG
 
 
-  DEBUG_printf("httpResolveURI(uri=\"%s\", resolved_uri=%p, resolved_size=" CUPS_LLFMT ", options=0x%x, cb=%p, cb_data=%p)", uri, (void *)resolved_uri, CUPS_LLCAST resolved_size, options, (void *)cb, cb_data);
+  DEBUG_printf("httpResolveURI(uri=\"%s\", resolved_uri=%p, resolved_size=" CUPS_LLFMT ", options=0x%x, cb=%p, cb_data=%p)", uri ? uri : "", (void *)resolved_uri, CUPS_LLCAST resolved_size, options, (void *)cb, cb_data);
 
   // Get the device URI...
 #ifdef DEBUG
@@ -1568,7 +1568,7 @@ httpResolveURI(
     uribuf.resource = resource;
     uribuf.uuid     = uuid;
 
-    DEBUG_printf("2httpResolveURI: Resolving name=\"%s\", regtype=\"%s\",  domain=\"%s\"\n", name, regtype, domain);
+    DEBUG_printf("2httpResolveURI: Resolving name=\"%s\", regtype=\"%s\",  domain=\"%s\"\n", name ? name : "", regtype ? regtype : "", domain ? domain : "");
 
     uri = NULL;
 
@@ -1616,7 +1616,7 @@ httpResolveURI(
     uri = resolved_uri;
   }
 
-  DEBUG_printf("2httpResolveURI: Returning \"%s\"", uri);
+  DEBUG_printf("2httpResolveURI: Returning \"%s\"", uri ? uri : "");
 
   return (uri);
 }
@@ -1765,14 +1765,14 @@ http_resolve_cb(
 			*resource;	// Resource path
 
 
-  DEBUG_printf("4http_resolve_cb(res=%p, cb_data=%p, flags=%x, if_index=%u, fullname=\"%s\", host=\"%s\", port=%u, num_txt=%u, txt=%p)", (void *)res, cb_data, flags, if_index, fullname, host, port, (unsigned)num_txt, (void *)txt);
+  DEBUG_printf("4http_resolve_cb(res=%p, cb_data=%p, flags=%x, if_index=%u, fullname=\"%s\", host=\"%s\", port=%u, num_txt=%u, txt=%p)", (void *)res, cb_data, flags, if_index, fullname ? fullname : "", host ? host : "", port, (unsigned)num_txt, (void *)txt);
 
   // If we have a UUID, compare it...
   if (uribuf->uuid && (value = cupsGetOption("UUID", num_txt, txt)) != NULL)
   {
     if (_cups_strcasecmp(value, uribuf->uuid))
     {
-      DEBUG_printf("5http_resolve_cb: Found UUID %s, looking for %s.", value, uribuf->uuid);
+      DEBUG_printf("5http_resolve_cb: Found UUID %s, looking for %s.", value ? value : "", uribuf && uribuf->uuid ? uribuf->uuid : "");
       return;
     }
   }
@@ -1828,7 +1828,7 @@ http_resolve_cb(
     http_addrlist_t	*addrlist,	// List of addresses
 			*addr;		// Current address
 
-    DEBUG_printf("5http_resolve_cb: Looking up \"%s\".", host);
+    DEBUG_printf("5http_resolve_cb: Looking up \"%s\".", host ? host : "");
 
     snprintf(fqdn, sizeof(fqdn), "%d", ntohs(port));
     if ((addrlist = httpAddrGetList(host, AF_UNSPEC, fqdn)) != NULL)
@@ -1839,7 +1839,7 @@ http_resolve_cb(
 
         if (!error)
 	{
-	  DEBUG_printf("5http_resolve_cb: Found \"%s\".", fqdn);
+	  DEBUG_printf("5http_resolve_cb: Found \"%s\".", fqdn ? fqdn : "");
 
 	  if ((hostptr = fqdn + strlen(fqdn) - 6) <= fqdn || _cups_strcasecmp(hostptr, ".local"))
 	  {
@@ -1863,5 +1863,5 @@ http_resolve_cb(
   else
     httpAssembleURIf(HTTP_URI_CODING_ALL, uribuf->buffer, uribuf->bufsize, scheme, NULL, host, port, "/%s", resource);
 
-  DEBUG_printf("5http_resolve_cb: Resolved URI is \"%s\"...", uribuf->buffer);
+  DEBUG_printf("5http_resolve_cb: Resolved URI is \"%s\"...", uribuf && uribuf->buffer ? uribuf->buffer : "");
 }

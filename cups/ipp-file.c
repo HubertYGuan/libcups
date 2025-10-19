@@ -11,6 +11,8 @@
 
 #include "cups-private.h"
 
+#undef DEBUG_printf
+#define DEBUG_printf(...)
 
 //
 // Private structures...
@@ -832,14 +834,14 @@ ippFileReadToken(ipp_file_t *file,	// I - IPP data file
     {
       // End of quoted text...
       *tokptr = '\0';
-      DEBUG_printf("1ippFileReadToken: Returning \"%s\" at closing quote.", token);
+      DEBUG_printf("1ippFileReadToken: Returning \"%s\" at closing quote.", token ? token : "");
       return (true);
     }
     else if (!quote && _cups_isspace(ch))
     {
       // End of unquoted text...
       *tokptr = '\0';
-      DEBUG_printf("1ippFileReadToken: Returning \"%s\" before whitespace.", token);
+      DEBUG_printf("1ippFileReadToken: Returning \"%s\" before whitespace.", token ? token : "");
       return (true);
     }
     else if (!quote && (ch == '\'' || ch == '\"'))
@@ -854,7 +856,7 @@ ippFileReadToken(ipp_file_t *file,	// I - IPP data file
       // Start of comment...
       cupsFileSeek(file->fp, cupsFileTell(file->fp) - 1);
       *tokptr = '\0';
-      DEBUG_printf("1ippFileReadToken: Returning \"%s\" before comment.", token);
+      DEBUG_printf("1ippFileReadToken: Returning \"%s\" before comment.", token ? token : "");
       return (true);
     }
     else if (!quote && (ch == '{' || ch == '}' || ch == ','))
@@ -872,7 +874,7 @@ ippFileReadToken(ipp_file_t *file,	// I - IPP data file
       }
 
       *tokptr = '\0';
-      DEBUG_printf("1ippFileReadToken: Returning \"%s\".", token);
+      DEBUG_printf("1ippFileReadToken: Returning \"%s\".", token ? token : "");
       return (true);
     }
     else
@@ -918,7 +920,7 @@ ippFileReadToken(ipp_file_t *file,	// I - IPP data file
       {
         // Token too long...
 	*tokptr = '\0';
-	DEBUG_printf("1ippFileReadToken: Too long: \"%s\".", token);
+	DEBUG_printf("1ippFileReadToken: Too long: \"%s\".", token ? token : "");
 	return (false);
       }
     }
@@ -928,7 +930,7 @@ ippFileReadToken(ipp_file_t *file,	// I - IPP data file
   }
 
   *tokptr = '\0';
-  DEBUG_printf("1ippFileReadToken: Returning \"%s\" at EOF.", token);
+  DEBUG_printf("1ippFileReadToken: Returning \"%s\" at EOF.", token ? token : "");
 
   return (tokptr > token);
 }

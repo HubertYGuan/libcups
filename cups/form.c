@@ -34,7 +34,7 @@ size_t					// O - Number of variables
 cupsFormDecode(const char    *data,	// I - URL-encoded form data
                cups_option_t **vars)	// O - Array of variables
 {
-  LOG_MODULE_DECLARE(libcups);
+  
   size_t	num_vars = 0;		// Number of variables
   char		name[1024],		// Variable name
 		value[4096];		// Variable value

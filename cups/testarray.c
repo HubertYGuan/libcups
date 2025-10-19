@@ -15,8 +15,6 @@
 #include "dir.h"
 #include "test-internal.h"
 
-LOG_MODULE_REGISTER(libcups);
-
 //
 // Local functions...
 //

@@ -10,6 +10,7 @@
 //
 
 #include "cups-private.h"
+#include <zephyr/logging/log.h>
 #include <sys/stat.h>
 #ifdef HAVE_RESOLV_H
 #  include <resolv.h>
@@ -199,7 +200,7 @@ httpAddrGetString(
     cupsCopyString(s, "UNKNOWN", (size_t)slen);
   }
 
-  DEBUG_printf("2httpAddrGetString: returning \"%s\"...", s);
+  DEBUG_printf("2httpAddrGetString: returning \"%s\"...", s ? s : "");
 
   return (s);
 }
@@ -468,7 +469,7 @@ httpAddrLookup(
     return (httpAddrGetString(addr, name, namelen));
   }
 
-  DEBUG_printf("2httpAddrLookup: returning \"%s\"...", name);
+  DEBUG_printf("2httpAddrLookup: returning \"%s\"...", name ? name : "");
 
   return (name);
 }
@@ -512,6 +513,7 @@ httpGetHostname(http_t *http,		// I - HTTP connection or NULL
 
     if (gethostname(s, (size_t)slen) < 0)
       cupsCopyString(s, "localhost", (size_t)slen);
+    DEBUG_printf("httpgethostname, obtained name: %s", s ? s : "(nil)");
 
     if (!strchr(s, '.'))
     {
@@ -540,13 +542,16 @@ httpGetHostname(http_t *http,		// I - HTTP connection or NULL
 #else
       // The hostname is not a FQDN, so look it up...
       struct addrinfo *addrs;  // addr info entry to get FQDN
-      if (!getaddrinfo(s, "80", NULL, &addrs) && addrs->ai_canonname)
+      DEBUG_puts("Looking up addrinfo for fqdn");
+      if (!getaddrinfo(s, "80", NULL, &addrs) && addrs->ai_canonname && *addrs->ai_canonname)
       {
         // Use the resolved hostname...
 	cupsCopyString(s, addrs->ai_canonname, (size_t)slen);
       }
 #endif // HAVE_SCDYNAMICSTORECOPYCOMPUTERNAME
     }
+
+    DEBUG_printf("Now obtained: %s", s ? s : "(nil)");
 
     // Make sure .local hostnames end with a period...
     if (strlen(s) > 6 && !strcmp(s + strlen(s) - 6, ".local"))
@@ -561,6 +566,8 @@ httpGetHostname(http_t *http,		// I - HTTP connection or NULL
     for (ptr = s; *ptr; ptr ++)
       *ptr = (char)_cups_tolower((int)*ptr);
   }
+
+  DEBUG_printf("httpgethostname, returning %s", s ? s : "(nil)");
 
   // Return the hostname with as much domain info as we have...
   return (s);

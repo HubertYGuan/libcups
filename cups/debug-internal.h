@@ -45,8 +45,10 @@ extern "C" {
 //
 
 #  ifdef DEBUG
-#    define DEBUG_puts(x) _cups_debug_puts(x)
-#    define DEBUG_printf(...) _cups_debug_printf(__VA_ARGS__)
+#include <zephyr/logging/log.h>
+LOG_MODULE_DECLARE(libcups);
+#    define DEBUG_puts(x) LOG_INF("%s", x ? x : "")
+#    define DEBUG_printf(...) LOG_INF(__VA_ARGS__)
 #  else
 #    define DEBUG_puts(x)
 #    define DEBUG_printf(...)
@@ -57,7 +59,7 @@ extern "C" {
 // Prototypes...
 //
 
-#  ifdef DEBUG
+#  if 0
 extern int	_cups_debug_fd _CUPS_INTERNAL;
 extern int	_cups_debug_level _CUPS_INTERNAL;
 extern void	_cups_debug_printf(const char *format, ...) _CUPS_FORMAT(1,2) _CUPS_INTERNAL;

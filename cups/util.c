@@ -18,6 +18,15 @@
 #  include <unistd.h>
 #endif // _WIN32 || __EMX__
 
+#ifdef CONFIG_CUPS_USE_EXTERNAL_HEAP
+void *CUPS_LARGE_CALLOC(size_t nelem, size_t elsize)
+{
+  void *x = CUPS_LARGE_MALLOC(nelem * elsize);
+  if (x == NULL)
+    return NULL;
+  return memset(x, 0, nelem * elsize);
+}
+#endif
 
 //
 // 'cupsFreeJobs()' - Free memory used by job data.

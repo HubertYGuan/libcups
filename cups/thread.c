@@ -11,7 +11,7 @@
 #include "cups-private.h"
 #include "thread.h"
 #include <zephyr/logging/log.h>
-
+#include <zephyr/kernel.h>
 
 //
 // Windows threading...
@@ -594,11 +594,27 @@ cupsThreadCreate(
     cups_thread_func_t func,		// I - Entry point
     void               *arg)		// I - Entry point context
 {
+  
   pthread_t thread;			// Thread
-  LOG_MODULE_DECLARE(libcups);
+  pthread_attr_t attr;      // Attr
+  void *pthread_stack;
+  LOG_INF("creating thread");
+  pthread_attr_init(&attr);
 
-  if (pthread_create(&thread, NULL, (void *(*)(void *))func, arg))
+  k_sleep(K_MSEC(100));
+
+  if ((pthread_stack = CUPS_LARGE_MALLOC(CONFIG_CUPS_THREAD_SIZE)) == NULL)
+		return (CUPS_THREAD_INVALID);
+	pthread_attr_setstack(&attr, pthread_stack, CONFIG_CUPS_THREAD_SIZE);
+  #if defined(CONFIG_CUPS_USE_EXTERNAL_HEAP) && defined(CONFIG_SHARED_MULTI_HEAP)
+  pthread_attr_setinsmh(&attr);
+  #endif
+
+  if (pthread_create(&thread, &attr, (void *(*)(void *))func, arg))
+  {
+    CUPS_LARGE_FREE(pthread_stack);
     return (CUPS_THREAD_INVALID);
+  }
   else
   {
     LOG_INF("Successfully created thread");
@@ -614,7 +630,7 @@ cupsThreadCreate(
 void
 cupsThreadDetach(cups_thread_t thread)// I - Thread ID
 {
-  LOG_MODULE_DECLARE(libcups);
+  
   LOG_INF("Detaching thread");
   pthread_detach(thread);
   LOG_INF("Detached thread");

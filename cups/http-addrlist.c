@@ -439,7 +439,7 @@ httpAddrGetList(const char *hostname,	// I - Hostname, IP address, or NULL for p
 
 
 #ifdef DEBUG
-  _cups_debug_printf("httpAddrGetList(hostname=\"%s\", family=AF_%s, "
+  DEBUG_printf("httpAddrGetList(hostname=\"%s\", family=AF_%s, "
                      "service=\"%s\")\n",
 		     hostname ? hostname : "(nil)",
 		     family == AF_UNSPEC ? "UNSPEC" :
@@ -449,7 +449,7 @@ httpAddrGetList(const char *hostname,	// I - Hostname, IP address, or NULL for p
 #  ifdef AF_INET6
 	                 family == AF_INET6 ? "INET6" :
 #  endif // AF_INET6
-	                 family == AF_INET ? "INET" : "???", service);
+	                 family == AF_INET ? "INET" : "???", service ? service : "(nil)");
 #endif // DEBUG
 
   httpInitialize();

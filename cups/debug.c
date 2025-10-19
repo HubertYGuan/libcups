@@ -33,7 +33,7 @@ _cups_gettimeofday(struct timeval *tv,	// I  - Timeval struct
 #include <fcntl.h>
 
 
-#ifdef DEBUG
+#if 0
 //
 // Globals...
 //

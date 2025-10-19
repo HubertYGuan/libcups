@@ -17,6 +17,9 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
 
+#undef DEBUG_printf
+#define DEBUG_printf(...)
+
 //
 // Local functions...
 //
@@ -815,7 +818,7 @@ ippAddString(ipp_t      *ipp,		// I - IPP message
 					// Charset/language code buffer
 
 
-  DEBUG_printf("ippAddString(ipp=%p, group=%02x(%s), value_tag=%02x(%s), name=\"%s\", language=\"%s\", value=\"%s\")", (void *)ipp, group, ippTagString(group), value_tag, ippTagString(value_tag), name, language, value);
+  DEBUG_printf("ippAddString(ipp=%p, group=%02x(%s), value_tag=%02x(%s), name=\"%s\", language=\"%s\", value=\"%s\")", (void *)ipp, group, ippTagString(group), value_tag, ippTagString(value_tag), name ? name : "", language ? language : "", value ? value : "");
 
   // Range check input...
   temp_tag = (ipp_tag_t)((int)value_tag & IPP_TAG_CUPS_MASK);
@@ -845,7 +848,10 @@ ippAddString(ipp_t      *ipp,		// I - IPP message
 
   // Create the attribute...
   if ((attr = ipp_add_attr(ipp, name, group, value_tag, 1)) == NULL)
+  {
+    LOG_INF("ippaddstr: could not create ipp_add_attr");
     return (NULL);
+  }
 
   // Initialize the attribute data...
   if ((int)value_tag & IPP_TAG_CUPS_CONST)
@@ -1101,7 +1107,7 @@ ippAddStrings(
   char			code[32];	// Language/charset value buffer
 
 
-  DEBUG_printf("ippAddStrings(ipp=%p, group=%02x(%s), value_tag=%02x(%s), name=\"%s\", num_values=%u, language=\"%s\", values=%p)", (void *)ipp, group, ippTagString(group), value_tag, ippTagString(value_tag), name, (unsigned)num_values, language, (void *)values);
+  DEBUG_printf("ippAddStrings(ipp=%p, group=%02x(%s), value_tag=%02x(%s), name=\"%s\", num_values=%u, language=\"%s\", values=%p)", (void *)ipp, group, ippTagString(group), value_tag, ippTagString(value_tag), name ? name : "", (unsigned)num_values, language ? language : "", (void *)values);
 
   // Range check input...
   temp_tag = (ipp_tag_t)((int)value_tag & IPP_TAG_CUPS_MASK);
@@ -1250,7 +1256,7 @@ ippContainsString(
   _ipp_value_t	*avalue;		// Current attribute value
 
 
-  DEBUG_printf("ippContainsString(attr=%p, value=\"%s\")", (void *)attr, value);
+  DEBUG_printf("ippContainsString(attr=%p, value=\"%s\")", (void *)attr, value ? value : "");
 
   // Range check input...
   if (!attr || !value)
@@ -1271,7 +1277,7 @@ ippContainsString(
     case IPP_TAG_URISCHEME :
 	for (i = attr->num_values, avalue = attr->values; i > 0; i --, avalue ++)
 	{
-	  DEBUG_printf("1ippContainsString: value[%u]=\"%s\"", (unsigned)(attr->num_values - i), avalue->string.text);
+	  DEBUG_printf("1ippContainsString: value[%u]=\"%s\"", (unsigned)(attr->num_values - i), avalue->string.text ? avalue->string.text : "");
 
 	  if (avalue->string.text && !strcmp(value, avalue->string.text))
 	  {
@@ -1288,7 +1294,7 @@ ippContainsString(
     case IPP_TAG_TEXTLANG :
 	for (i = attr->num_values, avalue = attr->values; i > 0; i --, avalue ++)
 	{
-	  DEBUG_printf("1ippContainsString: value[%u]=\"%s\"", (unsigned)(attr->num_values - i), avalue->string.text);
+	  DEBUG_printf("1ippContainsString: value[%u]=\"%s\"", (unsigned)(attr->num_values - i), avalue->string.text ? avalue->string.text : "");
 
 	  if (avalue->string.text && !_cups_strcasecmp(value, avalue->string.text))
 	  {
@@ -1686,10 +1692,10 @@ ippDelete(ipp_t *ipp)			// I - IPP message
     if (attr->name)
       _cupsStrFree(attr->name);
 
-    free(attr);
+    CUPS_LARGE_FREE(attr);
   }
 
-  free(ipp);
+  CUPS_LARGE_FREE(ipp);
 }
 
 
@@ -1744,7 +1750,7 @@ ippDeleteAttribute(
   if (attr->name)
     _cupsStrFree(attr->name);
 
-  free(attr);
+  CUPS_LARGE_FREE(attr);
 }
 
 
@@ -1800,7 +1806,7 @@ ippFindAttribute(ipp_t      *ipp,	// I - IPP message
                  const char *name,	// I - Name of attribute
 		 ipp_tag_t  type)	// I - Type of attribute
 {
-  DEBUG_printf("2ippFindAttribute(ipp=%p, name=\"%s\", type=%02x(%s))", (void *)ipp, name, type, ippTagString(type));
+  DEBUG_printf("2ippFindAttribute(ipp=%p, name=\"%s\", type=%02x(%s))", (void *)ipp, name ? name : "", type, ippTagString(type));
 
   // Range check input...
   if (!ipp || !name)
@@ -1836,7 +1842,7 @@ ippFindNextAttribute(ipp_t      *ipp,	// I - IPP message
 			*child = NULL;	// Child attribute name
 
 
-  DEBUG_printf("2ippFindNextAttribute(ipp=%p, name=\"%s\", type=%02x(%s))", (void *)ipp, name, type, ippTagString(type));
+  DEBUG_printf("2ippFindNextAttribute(ipp=%p, name=\"%s\", type=%02x(%s))", (void *)ipp, name ? name : "", type, ippTagString(type));
 
   // Range check input...
   if (!ipp || !name)
@@ -1901,7 +1907,7 @@ ippFindNextAttribute(ipp_t      *ipp,	// I - IPP message
 
   for (; attr != NULL; attr = attr->next)
   {
-    DEBUG_printf("4ippFindAttribute: attr=%p, name=\"%s\"", (void *)attr, attr->name);
+    DEBUG_printf("4ippFindAttribute: attr=%p, name=\"%s\"", (void *)attr, attr && attr->name ? attr->name : "");
 
     value_tag = (ipp_tag_t)(attr->value_tag & IPP_TAG_CUPS_MASK);
 
@@ -2356,7 +2362,7 @@ ippGetVersion(ipp_t *ipp,		// I - IPP message
 ipp_t *					// O - New IPP message
 ippNew(void)
 {
-  LOG_MODULE_DECLARE(libcups);
+  
   ipp_t			*temp;		// New IPP message
   _cups_globals_t	*cg = _cupsGlobals();
 					// Global data
@@ -2364,7 +2370,7 @@ ippNew(void)
 
   DEBUG_puts("ippNew()");
 
-  if ((temp = (ipp_t *)calloc(1, sizeof(ipp_t))) != NULL)
+  if ((temp = (ipp_t *)CUPS_LARGE_CALLOC(1, sizeof(ipp_t))) != NULL)
   {
     // Set default version - usually 2.0...
     LOG_INF("4debug_alloc: %p IPP message, %p", (void *)temp, cg);
@@ -4175,7 +4181,7 @@ ippWriteIO(void        *dst,		// I - Destination
 	    }
 	  }
 
-	  DEBUG_printf("1ippWriteIO: %s (%s%s)", attr->name, attr->num_values > 1 ? "1setOf " : "", ippTagString(attr->value_tag));
+	  DEBUG_printf("1ippWriteIO: %s (%s%s)", attr && attr->name ? attr->name : "", attr->num_values > 1 ? "1setOf " : "", ippTagString(attr->value_tag));
 
 	  // Write the attribute tag and name.
 	  //
@@ -4195,7 +4201,7 @@ ippWriteIO(void        *dst,		// I - Destination
 
 	    // Write the value tag, name length, and name string...
 	    DEBUG_printf("2ippWriteIO: writing value tag=%x(%s)", attr->value_tag, ippTagString(attr->value_tag));
-            DEBUG_printf("2ippWriteIO: writing name=%d,\"%s\"", n, attr->name);
+            DEBUG_printf("2ippWriteIO: writing name=%d,\"%s\"", n, attr && attr->name ? attr->name : "");
 
 	    *bufptr++ = (ipp_uchar_t)attr->value_tag;
 	    *bufptr++ = (ipp_uchar_t)(n >> 8);
@@ -4216,7 +4222,7 @@ ippWriteIO(void        *dst,		// I - Destination
 	    // Write the member name tag, name length, name string, value tag,
 	    // and empty name for the collection member attribute...
             DEBUG_printf("2ippWriteIO: writing value tag=%x(memberName)", IPP_TAG_MEMBERNAME);
-            DEBUG_printf("2ippWriteIO: writing name=%d,\"%s\"", n, attr->name);
+            DEBUG_printf("2ippWriteIO: writing name=%d,\"%s\"", n, attr && attr->name ? attr->name : "");
             DEBUG_printf("2ippWriteIO: writing value tag=%x(%s)", attr->value_tag, ippTagString(attr->value_tag));
             DEBUG_puts("2ippWriteIO: writing name=0,\"\"");
 
@@ -4373,7 +4379,7 @@ ippWriteIO(void        *dst,		// I - Destination
 		    return (IPP_STATE_ERROR);
 		  }
 
-                  DEBUG_printf("2ippWriteIO: writing string=%d,\"%s\"", n, value->string.text);
+                  DEBUG_printf("2ippWriteIO: writing string=%d,\"%s\"", n, value->string.text ? value->string.text : "");
 
                   if ((int)(IPP_BUF_SIZE - (bufptr - buffer)) < (n + 2))
 		  {
@@ -4811,7 +4817,7 @@ ipp_add_attr(ipp_t      *ipp,		// I - IPP message
   ipp_attribute_t	*attr;		// New attribute
 
 
-  DEBUG_printf("4ipp_add_attr(ipp=%p, name=\"%s\", group_tag=0x%x, value_tag=0x%x, num_values=%u)", (void *)ipp, name, group_tag, value_tag, (unsigned)num_values);
+  DEBUG_printf("4ipp_add_attr(ipp=%p, name=\"%s\", group_tag=0x%x, value_tag=0x%x, num_values=%u)", (void *)ipp, name ? name : "", group_tag, value_tag, (unsigned)num_values);
 
   // Range check input...
   if (!ipp)
@@ -4823,7 +4829,7 @@ ipp_add_attr(ipp_t      *ipp,		// I - IPP message
   else
     alloc_values = (num_values + IPP_MAX_VALUES - 1) & (size_t)~(IPP_MAX_VALUES - 1);
 
-  attr = calloc(1, sizeof(ipp_attribute_t) + (size_t)(alloc_values - 1) * sizeof(_ipp_value_t));
+  attr = CUPS_LARGE_CALLOC(1, sizeof(ipp_attribute_t) + (size_t)(alloc_values - 1) * sizeof(_ipp_value_t));
 
   if (attr)
   {

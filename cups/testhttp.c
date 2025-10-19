@@ -11,6 +11,7 @@
 
 #include "cups-private.h"
 #include "test-internal.h"
+#include <zephyr/kernel.h>
 
 
 //
@@ -254,6 +255,7 @@ testhttp_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     "HTTP_URI_STATUS_MISSING_RESOURCE"
   };
 
+  k_sleep(K_MSEC(1000));
 
   // Do API tests if we don't have a URL on the command-line...
   if (argc == 1)

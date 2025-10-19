@@ -39,6 +39,18 @@ typedef int mode_t;			// Windows doesn't support mode_t type @private@
 
 #  define _(x) x
 
+// Macro for large memory allocations
+#ifdef CONFIG_CUPS_USE_EXTERNAL_HEAP
+#include <zephyr/multi_heap/shared_multi_heap.h>
+#define CUPS_LARGE_MALLOC(x) shared_multi_heap_alloc(SMH_REG_ATTR_EXTERNAL, x)
+#define CUPS_LARGE_FREE shared_multi_heap_free
+extern void *CUPS_LARGE_CALLOC(size_t nelem, size_t elsize);
+#else
+#define CUPS_LARGE_MALLOC(x) malloc(x)
+#define CUPS_LARGE_FREE(x) free(x)
+#define CUPS_LARGE_CALLOC(x, y) calloc(x, y)
+#endif
+
 
 //
 // Types...

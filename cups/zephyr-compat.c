@@ -2,6 +2,9 @@
 #include <zephyr/fs/fs.h>
 #include <unistd.h>
 #include <errno.h>
+#include <zephyr/logging/log.h>
+
+LOG_MODULE_REGISTER(libcups);
 
 static struct tm gmtime_result;
 

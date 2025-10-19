@@ -1033,8 +1033,8 @@ test_file(const char *color)		// I - Media color or `NULL` for default
     color = "white";
   }
 
-  testBegin("ippFileOpen(\"testipp.test\", \"r\")");
-  if (ippFileOpen(file, "testipp.test", "r"))
+  testBegin("ippFileOpen(\"/lfs/testipp.test\", \"r\")");
+  if (ippFileOpen(file, "/lfs/testipp.test", "r"))
   {
     testEnd(true);
   }

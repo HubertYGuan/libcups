@@ -542,7 +542,7 @@ pwgInitSize(pwg_size_t *size,		// I - Size to initialize
 pwg_media_t *				// O - Matching size or NULL
 pwgMediaForLegacy(const char *legacy)	// I - Legacy size name
 {
-  LOG_MODULE_DECLARE(libcups);
+  
   pwg_media_t	key;			// Search key
   _cups_globals_t *cg = _cupsGlobals();	// Global data
 

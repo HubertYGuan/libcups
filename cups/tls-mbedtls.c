@@ -4,8 +4,8 @@
 // Note: This file is included from tls.c
 //
 // Copyright © 2020-2025 by OpenPrinting
-// Copyright © 2007-2019 by Apple Inc.
-// Copyright © 1997-2007 by Easy Software Products, all rights reserved.
+// Copyright © 2007-2019 by Apple Inc.
+// Copyright ©  1997-2007 by Easy Software Products, all rights reserved.
 //
 // Licensed under Apache License v2.0.  See the file "LICENSE" for more
 // information.
@@ -233,7 +233,7 @@ cupsCreateCredentials(
   char curtime_str[strlen("YYYYMMDDhhmmss")+1];
   char expiration_str[strlen("YYYYMMDDhhmmss")+1];
 
-  DEBUG_printf("cupsCreateCredentials(path=\"%s\", ca_cert=%s, purpose=0x%x, type=%d, usage=0x%x, organization=\"%s\", org_unit=\"%s\", locality=\"%s\", state_province=\"%s\", country=\"%s\", common_name=\"%s\", num_alt_names=%u, alt_names=%p, root_name=\"%s\", expiration_date=%ld)", path, ca_cert ? "true" : "false", purpose, type, usage, organization, org_unit, locality, state_province, country, common_name, (unsigned)num_alt_names, alt_names, root_name, (long)expiration_date);
+  DEBUG_printf("cupsCreateCredentials(path=\"%s\", ca_cert=%s, purpose=0x%x, type=%d, usage=0x%x, organization=\"%s\", org_unit=\"%s\", locality=\"%s\", state_province=\"%s\", country=\"%s\", common_name=\"%s\", num_alt_names=%u, alt_names=%p, root_name=\"%s\", expiration_date=%ld)", path ? path : "", ca_cert ? "true" : "false", purpose, type, usage, organization ? organization : "", org_unit ? org_unit : "", locality ? locality : "", state_province ? state_province : "", country ? country : "", common_name ? common_name : "", (unsigned)num_alt_names, alt_names, root_name ? root_name : "", (long)expiration_date);
 
   // Filenames...
   if (!path)
@@ -290,13 +290,13 @@ cupsCreateCredentials(
   }
   else if ((fp = cupsFileOpen(keyfile, "w")) != NULL)
   {
-    DEBUG_printf("1cupsCreateCredentials: Writing key pair to \"%s\".", keyfile);
+    DEBUG_printf("1cupsCreateCredentials: Writing key pair to \"%s\".", keyfile ? keyfile : "");
     cupsFileWrite(fp, (char *)buffer, bytes);
     cupsFileClose(fp);
   }
   else
   {
-    DEBUG_printf("1cupsCreateCredentials: Unable to create key pair file \"%s\": %s", keyfile, strerror(errno));
+    DEBUG_printf("1cupsCreateCredentials: Unable to create key pair file \"%s\": %s", keyfile ? keyfile : "", strerror(errno));
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     goto done;
   }
@@ -682,13 +682,13 @@ cupsCreateCredentials(
   }
   else if ((fp = cupsFileOpen(crtfile, "w")) != NULL)
   {
-    DEBUG_printf("1cupsCreateCredentials: Writing public key and X.509 certificate to \"%s\".", crtfile);
+    DEBUG_printf("1cupsCreateCredentials: Writing public key and X.509 certificate to \"%s\".", crtfile ? crtfile : "");
     cupsFileWrite(fp, (char *)buffer, bytes);
     cupsFileClose(fp);
   }
   else
   {
-    DEBUG_printf("1cupsCreateCredentials: Unable to create public key and X.509 certificate file \"%s\": %s", crtfile, strerror(errno));
+    DEBUG_printf("1cupsCreateCredentials: Unable to create public key and X.509 certificate file \"%s\": %s", crtfile ? crtfile : "", strerror(errno));
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     goto done;
   }
@@ -706,13 +706,13 @@ cupsCreateCredentials(
   }
   else if ((fp = cupsFileOpen(pubfile, "w")) != NULL)
   {
-    DEBUG_printf("1cupsCreateCredentials: Writing public key to \"%s\".", keyfile);
+    DEBUG_printf("1cupsCreateCredentials: Writing public key to \"%s\".", keyfile ? keyfile : "");
     cupsFileWrite(fp, (char *)buffer, bytes);
     cupsFileClose(fp);
   }
   else
   {
-    DEBUG_printf("1cupsCreateCredentials: Unable to create public key file \"%s\": %s", keyfile, strerror(errno));
+    DEBUG_printf("1cupsCreateCredentials: Unable to create public key file \"%s\": %s", keyfile ? keyfile : "", strerror(errno));
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     goto done;
   }
@@ -858,7 +858,7 @@ cupsCreateCredentialsRequest(
   bool pkctx_is_init = false;
 
 
-  DEBUG_printf("cupsCreateCredentialsRequest(path=\"%s\", purpose=0x%x, type=%d, usage=0x%x, organization=\"%s\", org_unit=\"%s\", locality=\"%s\", state_province=\"%s\", country=\"%s\", common_name=\"%s\", num_alt_names=%u, alt_names=%p)", path, purpose, type, usage, organization, org_unit, locality, state_province, country, common_name, (unsigned)num_alt_names, alt_names);
+  DEBUG_printf("cupsCreateCredentialsRequest(path=\"%s\", purpose=0x%x, type=%d, usage=0x%x, organization=\"%s\", org_unit=\"%s\", locality=\"%s\", state_province=\"%s\", country=\"%s\", common_name=\"%s\", num_alt_names=%u, alt_names=%p)", path ? path : "", purpose, type, usage, organization ? organization : "", org_unit ? org_unit : "", locality ? locality : "", state_province ? state_province : "", country ? country : "", common_name ? common_name : "", (unsigned)num_alt_names, alt_names);
 
   // Filenames...
   if (!path)
@@ -915,13 +915,13 @@ cupsCreateCredentialsRequest(
   }
   else if ((fp = cupsFileOpen(keyfile, "w")) != NULL)
   {
-    DEBUG_printf("1cupsCreateCredentialsRequest: Writing key pair to \"%s\".", keyfile);
+    DEBUG_printf("1cupsCreateCredentialsRequest: Writing key pair to \"%s\".", keyfile ? keyfile : "");
     cupsFileWrite(fp, (char *)buffer, bytes);
     cupsFileClose(fp);
   }
   else
   {
-    DEBUG_printf("1cupsCreateCredentialsRequest: Unable to create key pair file \"%s\": %s", keyfile, strerror(errno));
+    DEBUG_printf("1cupsCreateCredentialsRequest: Unable to create key pair file \"%s\": %s", keyfile ? keyfile : "", strerror(errno));
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     goto done;
   }
@@ -1184,13 +1184,13 @@ cupsCreateCredentialsRequest(
   }
   else if ((fp = cupsFileOpen(csrfile, "w")) != NULL)
   {
-    DEBUG_printf("1cupsCreateCredentialsRequest: Writing public key and X.509 certificate request to \"%s\".", csrfile);
+    DEBUG_printf("1cupsCreateCredentialsRequest: Writing public key and X.509 certificate request to \"%s\".", csrfile ? csrfile : "");
     cupsFileWrite(fp, (char *)buffer, bytes);
     cupsFileClose(fp);
   }
   else
   {
-    DEBUG_printf("1cupsCreateCredentialsRequest: Unable to create public key and X.509 certificate request file \"%s\": %s", csrfile, strerror(errno));
+    DEBUG_printf("1cupsCreateCredentialsRequest: Unable to create public key and X.509 certificate request file \"%s\": %s", csrfile ? csrfile : "", strerror(errno));
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     goto done;
   }
@@ -1208,13 +1208,13 @@ cupsCreateCredentialsRequest(
   }
   else if ((fp = cupsFileOpen(pubfile, "w")) != NULL)
   {
-    DEBUG_printf("1cupsCreateCredentials: Writing public key to \"%s\".", keyfile);
+    DEBUG_printf("1cupsCreateCredentials: Writing public key to \"%s\".", keyfile ? keyfile : "");
     cupsFileWrite(fp, (char *)buffer, bytes);
     cupsFileClose(fp);
   }
   else
   {
-    DEBUG_printf("1cupsCreateCredentials: Unable to create public key file \"%s\": %s", keyfile, strerror(errno));
+    DEBUG_printf("1cupsCreateCredentials: Unable to create public key file \"%s\": %s", keyfile ? keyfile : "", strerror(errno));
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     goto done;
   }
@@ -1656,7 +1656,7 @@ cupsSignCredentialsRequest(
   mbedtls_ctr_drbg_context ctr_drbg;  // These will be deprecated in Mbed TLS 4.0.0
 
 
-  DEBUG_printf("cupsSignCredentialsRequest(path=\"%s\", common_name=\"%s\", request=\"%s\", root_name=\"%s\", allowed_purpose=0x%x, allowed_usage=0x%x, cb=%p, cb_data=%p, expiration_date=%ld)", path, common_name, request, root_name, allowed_purpose, allowed_usage, cb, cb_data, (long)expiration_date);
+  DEBUG_printf("cupsSignCredentialsRequest(path=\"%s\", common_name=\"%s\", request=\"%s\", root_name=\"%s\", allowed_purpose=0x%x, allowed_usage=0x%x, cb=%p, cb_data=%p, expiration_date=%ld)", path ? path : "", common_name ? common_name : "", request ? request : "", root_name ? root_name : "", allowed_purpose, allowed_usage, cb, cb_data, (long)expiration_date);
 
   // Filenames...
   if (!path)
@@ -2123,13 +2123,13 @@ cupsSignCredentialsRequest(
   }
   else if ((fp = cupsFileOpen(crtfile, "w")) != NULL)
   {
-    DEBUG_printf("1cupsSignCredentialsRequest: Writing public key and X.509 certificate to \"%s\".", crtfile);
+    DEBUG_printf("1cupsSignCredentialsRequest: Writing public key and X.509 certificate to \"%s\".", crtfile ? crtfile : "");
     cupsFileWrite(fp, (char *)buffer, bytes);
     cupsFileClose(fp);
   }
   else
   {
-    DEBUG_printf("1cupsSignCredentialsRequest: Unable to create public key and X.509 certificate file \"%s\": %s", crtfile, strerror(errno));
+    DEBUG_printf("1cupsSignCredentialsRequest: Unable to create public key and X.509 certificate file \"%s\": %s", crtfile ? crtfile : "", strerror(errno));
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     goto done;
   }

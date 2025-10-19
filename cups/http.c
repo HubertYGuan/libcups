@@ -21,7 +21,7 @@
 #  include <sys/resource.h>
 #endif // _WIN32
 #include <zlib.h>
-
+#include <zephyr/logging/log.h>
 
 //
 // Local functions...
@@ -157,6 +157,7 @@ http_t *				// O - HTTP connection or `NULL`
 httpAcceptConnection(int  fd,		// I - Listen socket file descriptor
                      bool blocking)	// I - `true` if the connection should be blocking, `false` otherwise
 {
+  
   http_t		*http;		// HTTP connection
   http_addrlist_t	addrlist;	// Dummy address list
   socklen_t		addrlen;	// Length of address
@@ -203,12 +204,12 @@ httpAcceptConnection(int  fd,		// I - Listen socket file descriptor
   // files and requests, there shouldn't be any performance penalty for this...
   val = 1;
   if (setsockopt(http->fd, IPPROTO_TCP, TCP_NODELAY, CUPS_SOCAST &val, sizeof(val)))
-    DEBUG_printf("httpAcceptConnection: setsockopt(TCP_NODELAY) failed - %s", strerror(errno));
+    LOG_INF("httpAcceptConnection: setsockopt(TCP_NODELAY) failed - %s", strerror(errno));
 
 #ifdef FD_CLOEXEC
   // Close this socket when starting another process...
   if (fcntl(http->fd, F_SETFD, FD_CLOEXEC))
-    DEBUG_printf("httpAcceptConnection: fcntl(F_SETFD, FD_CLOEXEC) failed - %s", strerror(errno));
+    LOG_INF("httpAcceptConnection: fcntl(F_SETFD, FD_CLOEXEC) failed - %s", strerror(errno));
 #endif // FD_CLOEXEC
 
   return (http);
@@ -296,7 +297,7 @@ httpClose(http_t *http)			// I - HTTP connection
 
   _httpFreeCredentials(http->tls_credentials);
 
-  free(http);
+  CUPS_LARGE_FREE(http);
 }
 
 
@@ -334,7 +335,7 @@ httpConnect(
   http_t	*http;			// New HTTP connection
 
 
-  DEBUG_printf("httpConnect(host=\"%s\", port=%d, addrlist=%p, family=%d, encryption=%d, blocking=%d, msec=%d, cancel=%p)", host, port, (void *)addrlist, family, encryption, blocking, msec, (void *)cancel);
+  DEBUG_printf("httpConnect(host=\"%s\", port=%d, addrlist=%p, family=%d, encryption=%d, blocking=%d, msec=%d, cancel=%p)", host ? host : "", port, (void *)addrlist, family, encryption, blocking, msec, (void *)cancel);
 
   // Create the HTTP structure...
   if ((http = http_create(host, port, addrlist, family, encryption, blocking, _HTTP_MODE_CLIENT)) == NULL)
@@ -565,7 +566,7 @@ httpConnectURI(const char *uri,		// I - Service to connect to
     return (NULL);
   }
 
-  DEBUG_printf("1httpConnectURI: scheme=\"%s\", host=\"%s\", port=%d, resource=\"%s\"", scheme, host, *port, resource);
+  DEBUG_printf("1httpConnectURI: scheme=\"%s\", host=\"%s\", port=%d, resource=\"%s\"", scheme ? scheme : "", host ? host : "", *port, resource ? resource : "");
 
   if (!strcmp(scheme, "https") || !strcmp(scheme, "ipps") || *port == 443)
     encryption = HTTP_ENCRYPTION_ALWAYS;
@@ -651,7 +652,7 @@ httpFlush(http_t *http)			// I - HTTP connection
   http_state_t	oldstate;		// Old state
 
 
-  DEBUG_printf("httpFlush(http=%p), state=%s", (void *)http, httpStateString(http->state));
+  DEBUG_printf("httpFlush(http=%p), state=%s", (void *)http, http ? httpStateString(http->state) : "NONE");
 
   // Nothing to do if we are in the "waiting" state...
   if (http->state == HTTP_STATE_WAITING)
@@ -1336,7 +1337,7 @@ httpGetSubField(http_t       *http,	// I - HTTP connection
 		*end;			// End of value buffer
 
 
-  DEBUG_printf("2httpGetSubField(http=%p, field=%d, name=\"%s\", value=%p, valuelen=%u)", (void *)http, field, name, (void *)value, (unsigned)valuelen);
+  DEBUG_printf("2httpGetSubField(http=%p, field=%d, name=\"%s\", value=%p, valuelen=%u)", (void *)http, field, name ? name : "", (void *)value, (unsigned)valuelen);
 
   if (value)
     *value = '\0';
@@ -1363,7 +1364,7 @@ httpGetSubField(http_t       *http,	// I - HTTP connection
 
     *ptr = '\0';
 
-    DEBUG_printf("4httpGetSubField: name=\"%s\"", temp);
+    DEBUG_printf("4httpGetSubField: name=\"%s\"", temp ? temp : "");
 
     // Skip trailing chars up to the '='...
     while (_cups_isspace(*fptr))
@@ -1405,12 +1406,12 @@ httpGetSubField(http_t       *http,	// I - HTTP connection
         fptr ++;
     }
 
-    DEBUG_printf("4httpGetSubField: value=\"%s\"", value);
+    DEBUG_printf("4httpGetSubField: value=\"%s\"", value ? value : "");
 
     // See if this is the one...
     if (!strcmp(name, temp))
     {
-      DEBUG_printf("3httpGetSubField: Returning \"%s\"", value);
+      DEBUG_printf("3httpGetSubField: Returning \"%s\"", value ? value : "");
       return (value);
     }
   }
@@ -1740,13 +1741,13 @@ httpPrintf(http_t     *http,		// I - HTTP connection
   va_list	ap;			// Variable argument pointer
 
 
-  DEBUG_printf("2httpPrintf(http=%p, format=\"%s\", ...)", (void *)http, format);
+  DEBUG_printf("2httpPrintf(http=%p, format=\"%s\", ...)", (void *)http, format ? format : "");
 
   va_start(ap, format);
   bytes = vsnprintf(buf, sizeof(buf), format, ap);
   va_end(ap);
 
-  DEBUG_printf("3httpPrintf: (" CUPS_LLFMT " bytes) %s", CUPS_LLCAST bytes, buf);
+  DEBUG_printf("3httpPrintf: (" CUPS_LLFMT " bytes) %s", CUPS_LLCAST bytes, buf ? buf : "");
 
   if (bytes > (ssize_t)(sizeof(buf) - 1))
   {
@@ -2004,7 +2005,7 @@ httpReadRequest(http_t *http,		// I - HTTP connection
     return (HTTP_STATE_WAITING);
   }
 
-  DEBUG_printf("1httpReadRequest: %s", line);
+  DEBUG_printf("1httpReadRequest: %s", line ? line : "");
 
   // Parse it...
   req_method = line;
@@ -2105,12 +2106,12 @@ httpReadRequest(http_t *http,		// I - HTTP connection
   }
   else
   {
-    DEBUG_printf("1httpReadRequest: Unknown method \"%s\".", req_method);
+    DEBUG_printf("1httpReadRequest: Unknown method \"%s\".", req_method ? req_method : "");
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Unknown request method."), 1);
     return (HTTP_STATE_UNKNOWN_METHOD);
   }
 
-  DEBUG_printf("1httpReadRequest: Set state to %s.", httpStateString(http->state));
+  DEBUG_printf("1httpReadRequest: Set state to %s.", http ? httpStateString(http->state) : "NONE");
 
   if (!strcmp(req_version, "HTTP/1.0"))
   {
@@ -2124,12 +2125,12 @@ httpReadRequest(http_t *http,		// I - HTTP connection
   }
   else
   {
-    DEBUG_printf("1httpReadRequest: Unknown version \"%s\".", req_version);
+    DEBUG_printf("1httpReadRequest: Unknown version \"%s\".", req_version ? req_version : "");
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, _("Unknown request version."), 1);
     return (HTTP_STATE_UNKNOWN_VERSION);
   }
 
-  DEBUG_printf("1httpReadRequest: URI is \"%s\".", req_uri);
+  DEBUG_printf("1httpReadRequest: URI is \"%s\".", req_uri ? req_uri : "");
   cupsCopyString(uri, req_uri, urilen);
 
   return (http->state);
@@ -2151,7 +2152,7 @@ httpSetAuthString(http_t     *http,	// I - HTTP connection
 		  const char *data)	// I - Auth data (`NULL` for none)
 {
   // Range check input...
-  DEBUG_printf("httpSetAuthString(http=%p, scheme=\"%s\", data=\"%s\")", (void *)http, scheme, data);
+  DEBUG_printf("httpSetAuthString(http=%p, scheme=\"%s\", data=\"%s\")", (void *)http, scheme ? scheme : "", data ? data : "");
 
   if (!http)
     return;
@@ -2177,7 +2178,7 @@ httpSetAuthString(http_t     *http,	// I - HTTP connection
     http->authstring = NULL;
   }
 
-  DEBUG_printf("1httpSetAuthString: authstring=\"%s\"", http->authstring);
+  DEBUG_printf("1httpSetAuthString: authstring=\"%s\"", http && http->authstring ? http->authstring : "");
 }
 
 
@@ -2260,7 +2261,7 @@ httpSetDefaultField(http_t       *http,	// I - HTTP connection
                     http_field_t field,	// I - Field index
 	            const char   *value)// I - Value
 {
-  DEBUG_printf("httpSetDefaultField(http=%p, field=%d(%s), value=\"%s\")", (void *)http, field, field >= HTTP_FIELD_ACCEPT_LANGUAGE && field < HTTP_FIELD_MAX ? http_fields[field] : "unknown", value);
+  DEBUG_printf("httpSetDefaultField(http=%p, field=%d(%s), value=\"%s\")", (void *)http, field, field >= HTTP_FIELD_ACCEPT_LANGUAGE && field < HTTP_FIELD_MAX ? http_fields[field] : "unknown", value ? value : "");
 
   if (!http || field <= HTTP_FIELD_UNKNOWN || field >= HTTP_FIELD_MAX)
     return;
@@ -2338,7 +2339,7 @@ httpSetField(http_t       *http,	// I - HTTP connection
              http_field_t field,	// I - Field index
 	     const char   *value)	// I - Value
 {
-  DEBUG_printf("httpSetField(http=%p, field=%d(%s), value=\"%s\")", (void *)http, field, field >= HTTP_FIELD_ACCEPT_LANGUAGE && field < HTTP_FIELD_MAX ? http_fields[field] : "unknown", value);
+  DEBUG_printf("httpSetField(http=%p, field=%d(%s), value=\"%s\")", (void *)http, field, field >= HTTP_FIELD_ACCEPT_LANGUAGE && field < HTTP_FIELD_MAX ? http_fields[field] : "unknown", value ? value : "");
 
   if (!http || field <= HTTP_FIELD_UNKNOWN || field >= HTTP_FIELD_MAX || !value)
     return;
@@ -2513,7 +2514,7 @@ _httpUpdate(http_t        *http,	// I - HTTP connection
     return (false);
   }
 
-  DEBUG_printf("2_httpUpdate: Got \"%s\"", line);
+  DEBUG_printf("2_httpUpdate: Got \"%s\"", line ? line : "");
 
   if (line[0] == '\0')
   {
@@ -2621,7 +2622,7 @@ _httpUpdate(http_t        *http,	// I - HTTP connection
     while (_cups_isspace(*value))
       value ++;
 
-    DEBUG_printf("1_httpUpdate: Header %s: %s", line, value);
+    DEBUG_printf("1_httpUpdate: Header %s: %s", line ? line : "", value ? value : "");
 
     // Be tolerants of servers that send unknown attribute fields...
     if (!_cups_strcasecmp(line, "expect"))
@@ -2644,13 +2645,13 @@ _httpUpdate(http_t        *http,	// I - HTTP connection
 #ifdef DEBUG
     else
     {
-      DEBUG_printf("1_httpUpdate: unknown field %s seen!", line);
+      DEBUG_printf("1_httpUpdate: unknown field %s seen!", line ? line : "");
     }
 #endif // DEBUG
   }
   else
   {
-    DEBUG_printf("1_httpUpdate: Bad response line \"%s\"!", line);
+    DEBUG_printf("1_httpUpdate: Bad response line \"%s\"!", line ? line : "");
     http->error  = EINVAL;
     http->status = *status = HTTP_STATUS_ERROR;
     return (false);
@@ -2966,7 +2967,7 @@ httpWriteRequest(http_t     *http,	// I - HTTP connection
                  const char *method,	// I - Request method ("GET", "POST", "PUT", etc.)
                  const char *uri)	// I - Request URI
 {
-  DEBUG_printf("httpWriteRequest(http=%p, method=\"%s\", uri=\"%s\")", (void *)http, method, uri);
+  DEBUG_printf("httpWriteRequest(http=%p, method=\"%s\", uri=\"%s\")", (void *)http, method ? method : "", uri ? uri : "");
 
   if (!strcasecmp(method, "COPY"))
     return (http_send(http, HTTP_STATE_COPY, uri));
@@ -3273,7 +3274,7 @@ http_add_field(http_t       *http,	// I - HTTP connection
     http->fields[field] = strdup(value);
   }
 
-  DEBUG_printf("1http_add_field: append=%s, field=%d(%s), value=\"%s\".", append ? "true" : "false", field, http_fields[field], http->fields[field]);
+  DEBUG_printf("1http_add_field: append=%s, field=%d(%s), value=\"%s\".", append ? "true" : "false", field, http_fields[field], http && http->fields[field] ? http->fields[field] : "");
 
   if (field == HTTP_FIELD_CONTENT_ENCODING && http->data_encoding != HTTP_ENCODING_FIELDS)
   {
@@ -3370,7 +3371,7 @@ http_content_coding_start(
   _http_coding_t	coding;		// Content coding value
 
 
-  DEBUG_printf("http_content_coding_start(http=%p, value=\"%s\")", (void *)http, value);
+  DEBUG_printf("http_content_coding_start(http=%p, value=\"%s\")", (void *)http, value ? value : "");
 
   if (http->coding != _HTTP_CODING_IDENTITY)
   {
@@ -3422,7 +3423,7 @@ http_content_coding_start(
         if (http->wused)
           httpFlushWrite(http);
 
-        if ((http->sbuffer = malloc(_HTTP_MAX_SBUFFER)) == NULL)
+        if ((http->sbuffer = CUPS_LARGE_MALLOC(_HTTP_MAX_SBUFFER)) == NULL)
         {
           http->status = HTTP_STATUS_ERROR;
           http->error  = errno;
@@ -3434,7 +3435,7 @@ http_content_coding_start(
         // documentation.
 	if ((http->stream = calloc(1, sizeof(z_stream))) == NULL)
 	{
-          free(http->sbuffer);
+          CUPS_LARGE_FREE(http->sbuffer);
 
           http->sbuffer = NULL;
           http->status  = HTTP_STATUS_ERROR;
@@ -3460,7 +3461,7 @@ http_content_coding_start(
 
     case _HTTP_CODING_INFLATE :
     case _HTTP_CODING_GUNZIP :
-        if ((http->sbuffer = malloc(_HTTP_MAX_SBUFFER)) == NULL)
+        if ((http->sbuffer = CUPS_LARGE_MALLOC(_HTTP_MAX_SBUFFER)) == NULL)
         {
           http->status = HTTP_STATUS_ERROR;
           http->error  = errno;
@@ -3471,7 +3472,7 @@ http_content_coding_start(
         // -15 is raw inflate, 31 is gunzip, per ZLIB documentation.
 	if ((http->stream = calloc(1, sizeof(z_stream))) == NULL)
 	{
-          free(http->sbuffer);
+          CUPS_LARGE_FREE(http->sbuffer);
 
           http->sbuffer = NULL;
           http->status  = HTTP_STATUS_ERROR;
@@ -3525,7 +3526,7 @@ http_create(
   _cups_globals_t *cg = _cupsGlobals();	// Thread global data
 
 
-  DEBUG_printf("4http_create(host=\"%s\", port=%d, addrlist=%p, family=%d, encryption=%d, blocking=%s, mode=%d)", host, port, (void *)addrlist, family, encryption, blocking ? "true" : "false", mode);
+  DEBUG_printf("4http_create(host=\"%s\", port=%d, addrlist=%p, family=%d, encryption=%d, blocking=%s, mode=%d)", host ? host : "", port, (void *)addrlist, family, encryption, blocking ? "true" : "false", mode);
 
   if (!host && mode == _HTTP_MODE_CLIENT)
     return (NULL);
@@ -3548,7 +3549,7 @@ http_create(
     return (NULL);
 
   // Allocate memory for the structure...
-  if ((http = calloc(sizeof(http_t), 1)) == NULL)
+  if ((http = CUPS_LARGE_CALLOC(sizeof(http_t), 1)) == NULL)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     httpAddrFreeList(myaddrlist);
@@ -3566,7 +3567,7 @@ http_create(
 
   if (host)
   {
-    DEBUG_printf("5http_create: host=\"%s\"", host);
+    DEBUG_printf("5http_create: host=\"%s\"", host ? host : "");
 
     if (!strncmp(host, "fe80::", 6))
     {
@@ -3588,7 +3589,7 @@ http_create(
       cupsCopyString(http->hostname, host, sizeof(http->hostname));
     }
 
-    DEBUG_printf("5http_create: http->hostname=\"%s\"", http->hostname);
+    DEBUG_printf("5http_create: http->hostname=\"%s\"", http && http->hostname ? http->hostname : "");
   }
 
   if (port == 443)			// Always use encryption for https
@@ -3623,8 +3624,8 @@ http_debug_hex(const char *prefix,	// I - Prefix for line
 	*ptr;				// Pointer into line
 
 
-  if (_cups_debug_fd < 0 || _cups_debug_level < 6)
-    return;
+ /*  if (_cups_debug_fd < 0 || _cups_debug_level < 6)
+    return; */
 
   DEBUG_printf("9%s: %d bytes:", prefix, bytes);
 
@@ -3839,11 +3840,11 @@ http_read_chunk(http_t *http,		// I - HTTP connection
 
     if (http->data_remaining < 0)
     {
-      DEBUG_printf("8http_read_chunk: Negative chunk length \"%s\" (" CUPS_LLFMT ")", len, CUPS_LLCAST http->data_remaining);
+      DEBUG_printf("8http_read_chunk: Negative chunk length \"%s\" (" CUPS_LLFMT ")", len ? len : "", CUPS_LLCAST http->data_remaining);
       return (0);
     }
 
-    DEBUG_printf("8http_read_chunk: Got chunk length \"%s\" (" CUPS_LLFMT ")", len, CUPS_LLCAST http->data_remaining);
+    DEBUG_printf("8http_read_chunk: Got chunk length \"%s\" (" CUPS_LLFMT ")", len ? len : "", CUPS_LLCAST http->data_remaining);
 
     if (http->data_remaining == 0)
     {
@@ -3912,7 +3913,7 @@ http_send(http_t       *http,		// I - HTTP connection
   };
 
 
-  DEBUG_printf("4http_send(http=%p, request=HTTP_%s, uri=\"%s\")", (void *)http, codes[request], uri);
+  DEBUG_printf("4http_send(http=%p, request=HTTP_%s, uri=\"%s\")", (void *)http, codes[request], uri ? uri : "");
 
   if (http == NULL || uri == NULL)
     return (false);
@@ -3987,7 +3988,7 @@ http_send(http_t       *http,		// I - HTTP connection
   {
     if ((value = httpGetField(http, i)) != NULL && *value)
     {
-      DEBUG_printf("5http_send: %s: %s", http_fields[i], value);
+      DEBUG_printf("5http_send: %s: %s", http_fields[i], value ? value : "");
 
       if (i == HTTP_FIELD_HOST)
       {
@@ -4058,7 +4059,7 @@ http_set_length(http_t *http)		// I - Connection
   off_t	remaining;			// Remainder
 
 
-  DEBUG_printf("4http_set_length(http=%p) mode=%d state=%s", (void *)http, http->mode, httpStateString(http->state));
+  DEBUG_printf("4http_set_length(http=%p) mode=%d state=%s", (void *)http, http ? http->mode : -1, http ? httpStateString(http->state) : "NONE");
 
   if ((remaining = httpGetLength(http)) >= 0)
   {

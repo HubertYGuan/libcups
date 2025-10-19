@@ -519,7 +519,6 @@ _cupsStrAlloc(const char *s)		// I - String
   if (!stringpool)
   {
     cupsMutexUnlock(&sp_mutex);
-
     return (NULL);
   }
 
@@ -539,17 +538,14 @@ _cupsStrAlloc(const char *s)		// I - String
 #endif // DEBUG_GUARDS
 
     cupsMutexUnlock(&sp_mutex);
-
     return (item->str);
   }
 
   // Not found, so allocate a new one...
   slen = strlen(s);
-  item = (_cups_sp_item_t *)calloc(1, sizeof(_cups_sp_item_t) + slen);
   if (!item)
   {
     cupsMutexUnlock(&sp_mutex);
-
     return (NULL);
   }
 
@@ -566,7 +562,6 @@ _cupsStrAlloc(const char *s)		// I - String
   cupsArrayAdd(stringpool, item);
 
   cupsMutexUnlock(&sp_mutex);
-
   return (item->str);
 }
 
@@ -706,7 +701,7 @@ _cupsStrFree(const char *s)		// I - String to free
       // Remove and free...
       cupsArrayRemove(stringpool, item);
 
-      free(item);
+      CUPS_LARGE_FREE(item);
     }
   }
 

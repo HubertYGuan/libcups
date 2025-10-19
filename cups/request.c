@@ -23,6 +23,7 @@
 #ifndef MSG_DONTWAIT
 #  define MSG_DONTWAIT 0
 #endif // !MSG_DONTWAIT
+#include <zephyr/logging/log.h>
 
 
 //
@@ -43,7 +44,7 @@ cupsDoFileRequest(http_t     *http,	// I - Connection to server or `CUPS_HTTP_DE
   int		infile;			// Input file
 
 
-  DEBUG_printf("cupsDoFileRequest(http=%p, request=%p(%s), resource=\"%s\", filename=\"%s\")", (void *)http, (void *)request, request ? ippOpString(request->request.op.operation_id) : "?", resource, filename);
+  DEBUG_printf("cupsDoFileRequest(http=%p, request=%p(%s), resource=\"%s\", filename=\"%s\")", (void *)http, (void *)request, request ? ippOpString(request->request.op.operation_id) : "?", resource ? resource : "", filename ? filename : "");
 
   if (filename)
   {
@@ -100,7 +101,7 @@ cupsDoIORequest(http_t     *http,	// I - Connection to server or `CUPS_HTTP_DEFA
   char		buffer[32768];		// Output buffer
 
 
-  DEBUG_printf("cupsDoIORequest(http=%p, request=%p(%s), resource=\"%s\", infile=%d, outfile=%d)", (void *)http, (void *)request, request ? ippOpString(request->request.op.operation_id) : "?", resource, infile, outfile);
+  DEBUG_printf("cupsDoIORequest(http=%p, request=%p(%s), resource=\"%s\", infile=%d, outfile=%d)", (void *)http, (void *)request, request ? ippOpString(request->request.op.operation_id) : "?", resource ? resource : "", infile, outfile);
 
   // Range check input...
   if (!request || !resource)
@@ -242,7 +243,7 @@ cupsDoRequest(http_t     *http,		// I - Connection to server or `CUPS_HTTP_DEFAU
               ipp_t      *request,	// I - IPP request
               const char *resource)	// I - HTTP resource for POST
 {
-  DEBUG_printf("cupsDoRequest(http=%p, request=%p(%s), resource=\"%s\")", (void *)http, (void *)request, request ? ippOpString(request->request.op.operation_id) : "?", resource);
+  DEBUG_printf("cupsDoRequest(http=%p, request=%p(%s), resource=\"%s\")", (void *)http, (void *)request, request ? ippOpString(request->request.op.operation_id) : "?", resource ? resource : "");
 
   return (cupsDoIORequest(http, request, resource, -1, -1));
 }
@@ -266,7 +267,7 @@ cupsGetResponse(http_t     *http,	// I - Connection to server or `CUPS_HTTP_DEFA
   ipp_t		*response = NULL;	// IPP response
 
 
-  DEBUG_printf("cupsGetResponse(http=%p, resource=\"%s\")", (void *)http, resource);
+  DEBUG_printf("cupsGetResponse(http=%p, resource=\"%s\")", (void *)http, resource ? resource : "");
   DEBUG_printf("1cupsGetResponse: http->state=%d", http ? http->state : HTTP_STATE_ERROR);
 
   // Connect to the default server as needed...
@@ -379,7 +380,7 @@ cupsGetResponse(http_t     *http,	// I - Connection to server or `CUPS_HTTP_DEFA
 
     attr = ippFindAttribute(response, "status-message", IPP_TAG_TEXT);
 
-    DEBUG_printf("1cupsGetResponse: status-code=%s, status-message=\"%s\"", ippErrorString(response->request.status.status_code), attr ? attr->values[0].string.text : "");
+    DEBUG_printf("1cupsGetResponse: status-code=%s, status-message=\"%s\"", ippErrorString(response->request.status.status_code), attr && attr->values[0].string.text ? attr->values[0].string.text : "");
 
     _cupsSetError(response->request.status.status_code, attr ? attr->values[0].string.text : ippErrorString(response->request.status.status_code), false);
   }
@@ -475,7 +476,7 @@ cupsSendRequest(http_t     *http,	// I - Connection to server or `CUPS_HTTP_DEFA
   int			digest;		// Are we using Digest authentication?
 
 
-  DEBUG_printf("cupsSendRequest(http=%p, request=%p(%s), resource=\"%s\", length=" CUPS_LLFMT ")", (void *)http, (void *)request, request ? ippOpString(request->request.op.operation_id) : "?", resource, CUPS_LLCAST length);
+  DEBUG_printf("cupsSendRequest(http=%p, request=%p(%s), resource=\"%s\", length=" CUPS_LLFMT ")", (void *)http, (void *)request, request ? ippOpString(request->request.op.operation_id) : "?", resource ? resource : "", CUPS_LLCAST length);
 
   // Range check input...
   if (!request || !resource)
@@ -547,7 +548,7 @@ cupsSendRequest(http_t     *http,	// I - Connection to server or `CUPS_HTTP_DEFA
 
     httpSetField(http, HTTP_FIELD_AUTHORIZATION, http->authstring);
 
-    DEBUG_printf("2cupsSendRequest: authstring=\"%s\"", http->authstring);
+    DEBUG_printf("2cupsSendRequest: authstring=\"%s\"", http && http->authstring ? http->authstring : "");
 
     // Try the request...
     DEBUG_puts("2cupsSendRequest: Sending HTTP POST...");
@@ -859,6 +860,7 @@ _cupsSetError(ipp_status_t status,	// I - IPP status code
               const char   *message,	// I - status-message value
 	      bool         localize)	// I - Localize the message?
 {
+  
   _cups_globals_t	*cg;		// Global data
 
 
@@ -894,7 +896,7 @@ _cupsSetError(ipp_status_t status,	// I - IPP status code
     }
   }
 
-  DEBUG_printf("4_cupsSetError: last_error=%s, last_status_message=\"%s\"", ippErrorString(cg->last_error), cg->last_status_message);
+  LOG_INF("4_cupsSetError: last_error=%s, last_status_message=\"%s\"", ippErrorString(cg->last_error), cg->last_status_message ? cg->last_status_message : "");
 }
 
 
@@ -906,6 +908,7 @@ void
 _cupsSetHTTPError(http_t        *http,	// I - HTTP connection
                   http_status_t status)	// I - HTTP status code
 {
+  
   switch (status)
   {
     case HTTP_STATUS_NOT_MODIFIED :
@@ -959,7 +962,7 @@ _cupsSetHTTPError(http_t        *http,	// I - HTTP connection
     default :
         if ((int)status >= 300)
         {
-	  DEBUG_printf("4_cupsSetHTTPError: HTTP error %d mapped to IPP_STATUS_ERROR_SERVICE_UNAVAILABLE!", status);
+	  LOG_INF("4_cupsSetHTTPError: HTTP error %d mapped to IPP_STATUS_ERROR_SERVICE_UNAVAILABLE!", status);
 	  _cupsSetError(IPP_STATUS_ERROR_SERVICE_UNAVAILABLE, httpStatusString(status), false);
 	}
 	break;
