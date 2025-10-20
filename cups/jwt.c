@@ -122,12 +122,12 @@ cupsJWTDelete(cups_jwt_t *jwt)		// I - JWT object
   if (jwt)
   {
     cupsJSONDelete(jwt->jose);
-    free(jwt->jose_string);
+    CUPS_LARGE_FREE(jwt->jose_string);
     cupsJSONDelete(jwt->claims);
-    free(jwt->claims_string);
-    free(jwt->sigkid);
-    free(jwt->signature);
-    free(jwt);
+    CUPS_LARGE_FREE(jwt->claims_string);
+    CUPS_LARGE_FREE(jwt->sigkid);
+    CUPS_LARGE_FREE(jwt->signature);
+    CUPS_LARGE_FREE(jwt);
   }
 }
 
@@ -139,7 +139,7 @@ cupsJWTDelete(cups_jwt_t *jwt)		// I - JWT object
 // string.  The JSON output is always the "flattened" format since the JWT
 // only contains a single signature.
 //
-// The return value must be freed using the `free` function.
+// The return value must be freed using the `CUPS_LARGE_FREE` function.
 //
 
 char *					// O - JWT/JWS Serialization string
@@ -170,7 +170,7 @@ cupsJWTExportString(
 
       payload = make_string(jwt, false);
       cupsJSONNewString(json, cupsJSONNewKey(json, NULL, "payload"), payload);
-      free(payload);
+      CUPS_LARGE_FREE(payload);
 
       if (jwt->sigsize)
       {
@@ -482,7 +482,7 @@ cupsJWTHasValidSignature(
 #endif // HAVE_OPENSSL
 
         // Free memory
-	free(text);
+	CUPS_LARGE_FREE(text);
         break;
 
     case CUPS_JWA_ES256 :
@@ -567,7 +567,7 @@ cupsJWTHasValidSignature(
 #endif // HAVE_OPENSSL
 
         // Free memory
-	free(text);
+	CUPS_LARGE_FREE(text);
         break;
 
     default :
@@ -598,7 +598,7 @@ cupsJWTImportString(
 
 
   // Allocate a JWT...
-  if ((jwt = calloc(1, sizeof(cups_jwt_t))) == NULL)
+  if ((jwt = CUPS_LARGE_CALLOC(1, sizeof(cups_jwt_t))) == NULL)
     return (NULL);
 
   // Import it...
@@ -614,7 +614,7 @@ cupsJWTImportString(
 
     tokptr ++;
     data[datalen] = '\0';
-    jwt->jose_string = strdup(data);
+    jwt->jose_string = CUPS_LARGE_STRDUP(data);
     if ((jwt->jose = cupsJSONImportString(data)) == NULL)
       goto import_error;
 
@@ -625,7 +625,7 @@ cupsJWTImportString(
 
     tokptr ++;
     data[datalen] = '\0';
-    jwt->claims_string = strdup(data);
+    jwt->claims_string = CUPS_LARGE_STRDUP(data);
     if ((jwt->claims = cupsJSONImportString(data)) == NULL)
       goto import_error;
 
@@ -636,7 +636,7 @@ cupsJWTImportString(
 
     if (datalen > 0)
     {
-      if ((jwt->signature = malloc(datalen)) == NULL)
+      if ((jwt->signature = CUPS_LARGE_MALLOC(datalen)) == NULL)
 	goto import_error;
 
       memcpy(jwt->signature, data, datalen);
@@ -671,7 +671,7 @@ cupsJWTImportString(
     }
 
     data[datalen] = '\0';
-    jwt->claims_string = strdup(data);
+    jwt->claims_string = CUPS_LARGE_STRDUP(data);
     if ((jwt->claims = cupsJSONImportString(data)) == NULL)
     {
       cupsJSONDelete(json);
@@ -705,7 +705,7 @@ cupsJWTImportString(
     }
 
     data[datalen] = '\0';
-    jwt->jose_string = strdup(data);
+    jwt->jose_string = CUPS_LARGE_STRDUP(data);
     if ((jwt->jose = cupsJSONImportString(data)) == NULL)
     {
       cupsJSONDelete(json);
@@ -727,7 +727,7 @@ cupsJWTImportString(
 
     if (datalen > 0)
     {
-      if ((jwt->signature = malloc(datalen)) == NULL)
+      if ((jwt->signature = CUPS_LARGE_MALLOC(datalen)) == NULL)
 	goto import_error;
 
       memcpy(jwt->signature, data, datalen);
@@ -763,7 +763,7 @@ cupsJWTImportString(
   if ((kid = cupsJSONGetString(cupsJSONFind(jwt->jose, "kid"))) != NULL)
   {
     DEBUG_printf("1cupsJWTImportString: kid=\"%s\"", kid);
-    jwt->sigkid = strdup(kid);
+    jwt->sigkid = CUPS_LARGE_STRDUP(kid);
   }
 
   // Can't have signature with none or no signature for !none...
@@ -825,7 +825,7 @@ cupsJWTLoadCredentials(
   // Convert certificate chain to an array of Base64-encoded certificates
   len = strlen(creds);
 
-  if ((b64 = malloc(len + 1)) == NULL)
+  if ((b64 = CUPS_LARGE_MALLOC(len + 1)) == NULL)
     goto done;
 
   x5c = cupsJSONNew(/*parent*/NULL, /*after*/NULL, CUPS_JTYPE_ARRAY);
@@ -1110,9 +1110,9 @@ cupsJWTLoadCredentials(
 
   done:
 
-  free(creds);
-  free(key);
-  free(b64);
+  CUPS_LARGE_FREE(creds);
+  CUPS_LARGE_FREE(key);
+  CUPS_LARGE_FREE(b64);
 
   if (!jwk)
     cupsJSONDelete(x5c);
@@ -1483,7 +1483,7 @@ cupsJWTNew(const char  *type,		// I - JWT type or `NULL` for default ("JWT")
   cups_jwt_t	*jwt;			// JWT object
 
 
-  if ((jwt = calloc(1, sizeof(cups_jwt_t))) != NULL)
+  if ((jwt = CUPS_LARGE_CALLOC(1, sizeof(cups_jwt_t))) != NULL)
   {
     if ((jwt->jose = cupsJSONNew(NULL, NULL, CUPS_JTYPE_OBJECT)) != NULL)
     {
@@ -1518,7 +1518,7 @@ cupsJWTSetClaimNumber(cups_jwt_t *jwt,	// I - JWT object
     return;
 
   // Remove existing claim string, if any...
-  free(jwt->claims_string);
+  CUPS_LARGE_FREE(jwt->claims_string);
   jwt->claims_string = NULL;
 
   // Remove existing claim, if any...
@@ -1543,7 +1543,7 @@ cupsJWTSetClaimString(cups_jwt_t *jwt,	// I - JWT object
     return;
 
   // Remove existing claim string, if any...
-  free(jwt->claims_string);
+  CUPS_LARGE_FREE(jwt->claims_string);
   jwt->claims_string = NULL;
 
   // Remove existing claim, if any...
@@ -1569,7 +1569,7 @@ cupsJWTSetClaimValue(
     return;
 
   // Remove existing claim string, if any...
-  free(jwt->claims_string);
+  CUPS_LARGE_FREE(jwt->claims_string);
   jwt->claims_string = NULL;
 
   // Remove existing claim, if any...
@@ -1595,7 +1595,7 @@ cupsJWTSetHeaderNumber(
     return;
 
   // Remove existing claim string, if any...
-  free(jwt->claims_string);
+  CUPS_LARGE_FREE(jwt->claims_string);
   jwt->claims_string = NULL;
 
   // Remove existing claim, if any...
@@ -1621,7 +1621,7 @@ cupsJWTSetHeaderString(
     return;
 
   // Remove existing claim string, if any...
-  free(jwt->claims_string);
+  CUPS_LARGE_FREE(jwt->claims_string);
   jwt->claims_string = NULL;
 
   // Remove existing claim, if any...
@@ -1647,7 +1647,7 @@ cupsJWTSetHeaderValue(
     return;
 
   // Remove existing claim string, if any...
-  free(jwt->claims_string);
+  CUPS_LARGE_FREE(jwt->claims_string);
   jwt->claims_string = NULL;
 
   // Remove existing claim, if any...
@@ -1690,12 +1690,12 @@ cupsJWTSign(cups_jwt_t  *jwt,		// I - JWT object
 
   cupsJSONNewString(jwt->jose, cupsJSONNewKey(jwt->jose, /*after*/NULL, "alg"), cups_jwa_strings[alg]);
 
-  free(jwt->jose_string);
+  CUPS_LARGE_FREE(jwt->jose_string);
   jwt->jose_string = cupsJSONExportString(jwt->jose);
 
   // Clear existing signature...
-  free(jwt->signature);
-  free(jwt->sigkid);
+  CUPS_LARGE_FREE(jwt->signature);
+  CUPS_LARGE_FREE(jwt->sigkid);
   jwt->signature = NULL;
   jwt->sigkid    = NULL;
   jwt->sigsize   = 0;
@@ -1713,7 +1713,7 @@ cupsJWTSign(cups_jwt_t  *jwt,		// I - JWT object
   {
     cupsJSONAdd(jwt->jose, cupsJSONNewKey(jwt->jose, /*after*/NULL, "x5c"), copy_x5c(sigx5c));
 
-    free(jwt->jose_string);
+    CUPS_LARGE_FREE(jwt->jose_string);
     jwt->jose_string = cupsJSONExportString(jwt->jose);
     make_signature(jwt, alg, jwk, signature, &sigsize, &sigkid, NULL);
   }
@@ -1722,9 +1722,9 @@ cupsJWTSign(cups_jwt_t  *jwt,		// I - JWT object
 
   // Save the key ID and signature values...
   if (sigkid)
-    jwt->sigkid = strdup(sigkid);
+    jwt->sigkid = CUPS_LARGE_STRDUP(sigkid);
 
-  if ((jwt->signature = malloc(sigsize)) == NULL)
+  if ((jwt->signature = CUPS_LARGE_MALLOC(sigsize)) == NULL)
   {
     DEBUG_printf("2cupsJWTSign: Unable to allocate %d bytes for signature.", (int)sigsize);
     return (false);
@@ -2027,7 +2027,7 @@ make_datum(cups_json_t *jwk,		// I - JSON web key
     return (NULL);
 
   // Convert to a datum...
-  if ((datum = (gnutls_datum_t *)calloc(1, sizeof(gnutls_datum_t) + value_len)) != NULL)
+  if ((datum = (gnutls_datum_t *)CUPS_LARGE_CALLOC(1, sizeof(gnutls_datum_t) + value_len)) != NULL)
   {
     // Set pointer and length, and copy value bytes...
     datum->data = (unsigned char *)(datum + 1);
@@ -2102,14 +2102,14 @@ make_private_key(cups_json_t *jwk)	// I - JSON web key
     }
 
     // Free memory...
-    free(n);
-    free(e);
-    free(d);
-    free(p);
-    free(q);
-    free(dp);
-    free(dq);
-    free(qi);
+    CUPS_LARGE_FREE(n);
+    CUPS_LARGE_FREE(e);
+    CUPS_LARGE_FREE(d);
+    CUPS_LARGE_FREE(p);
+    CUPS_LARGE_FREE(q);
+    CUPS_LARGE_FREE(dp);
+    CUPS_LARGE_FREE(dq);
+    CUPS_LARGE_FREE(qi);
   }
   else if (!strcmp(kty, "EC"))
   {
@@ -2148,9 +2148,9 @@ make_private_key(cups_json_t *jwk)	// I - JSON web key
     }
 
     // Free memory...
-    free(x);
-    free(y);
-    free(d);
+    CUPS_LARGE_FREE(x);
+    CUPS_LARGE_FREE(y);
+    CUPS_LARGE_FREE(d);
   }
 
   // Return whatever key we got...
@@ -2195,8 +2195,8 @@ make_public_key(cups_json_t *jwk)	// I - JSON web key
     }
 
     // Free memory and return...
-    free(n);
-    free(e);
+    CUPS_LARGE_FREE(n);
+    CUPS_LARGE_FREE(e);
   }
   else if (!strcmp(kty, "EC"))
   {
@@ -2233,8 +2233,8 @@ make_public_key(cups_json_t *jwk)	// I - JSON web key
     }
 
     // Free memory...
-    free(x);
-    free(y);
+    CUPS_LARGE_FREE(x);
+    CUPS_LARGE_FREE(y);
   }
 
   return (key);
@@ -2355,7 +2355,7 @@ int mbedtls_ecdsa_import_jwk(mbedtls_ecdsa_context *ecdsa_ctx, cups_json_t *jwk,
     goto ecdsa_done;
   }
 
-  buf = (unsigned char *)malloc(1 + 2*((ecdsa_ctx->private_grp.pbits + 7u) / 8u));
+  buf = (unsigned char *)CUPS_LARGE_MALLOC(1 + 2*((ecdsa_ctx->private_grp.pbits + 7u) / 8u));
   if (!buf)
   {
     DEBUG_puts("Failed to allocate memory for pub key buffer\n");
@@ -2413,7 +2413,7 @@ int mbedtls_ecdsa_import_jwk(mbedtls_ecdsa_context *ecdsa_ctx, cups_json_t *jwk,
   mbedtls_mpi_free(&x);
   mbedtls_mpi_free(&y);
   if (buf)
-    free(buf);
+    CUPS_LARGE_FREE(buf);
   return ret;
 }
 
@@ -2745,7 +2745,7 @@ make_signature(cups_jwt_t    *jwt,	// I  - JWT
 
   DEBUG_printf("4make_signature: Returning %s.", ret ? "true" : "false");
 
-  free(text);
+  CUPS_LARGE_FREE(text);
 
   if (ret)
   {
@@ -2793,7 +2793,7 @@ make_string(cups_jwt_t *jwt,		// I - JWT object
   // Calculate the maximum Base64URL-encoded string length...
   len = ((jose_len + 2) * 4 / 3) + 1 + ((claims_len + 2) * 4 / 3) + 1 + ((_CUPS_JWT_MAX_SIGNATURE + 2) * 4 / 3) + 1;
 
-  if ((s = malloc(len)) == NULL)
+  if ((s = CUPS_LARGE_MALLOC(len)) == NULL)
     return (NULL);
 
   ptr = s;

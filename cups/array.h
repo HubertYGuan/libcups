@@ -31,7 +31,7 @@ typedef size_t (*cups_ahash_cb_t)(void *element, void *data);
 					// Array hash function
 typedef void *(*cups_acopy_cb_t)(void *element, void *data);
 					// Array element copy function
-typedef void (*cups_afree_cb_t)(void *element, void *data);
+typedef void (*cups_afree_cb_t)(void *element);
 					// Array element free function
 
 

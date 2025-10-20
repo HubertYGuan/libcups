@@ -364,7 +364,7 @@ httpAddrCopyList(
 
   while (src)
   {
-    if ((current = malloc(sizeof(http_addrlist_t))) == NULL)
+    if ((current = CUPS_LARGE_MALLOC(sizeof(http_addrlist_t))) == NULL)
     {
       current = dst;
 
@@ -373,7 +373,7 @@ httpAddrCopyList(
         prev    = current;
         current = current->next;
 
-        free(prev);
+        CUPS_LARGE_FREE(prev);
       }
 
       return (NULL);
@@ -412,7 +412,7 @@ httpAddrFreeList(
   {
     next = addrlist->next;
 
-    free(addrlist);
+    CUPS_LARGE_FREE(addrlist);
 
     addrlist = next;
   }
@@ -479,7 +479,7 @@ httpAddrGetList(const char *hostname,	// I - Hostname, IP address, or NULL for p
   if (hostname && hostname[0] == '/')
   {
     // Domain socket address...
-    if ((first = (http_addrlist_t *)calloc(1, sizeof(http_addrlist_t))) != NULL)
+    if ((first = (http_addrlist_t *)CUPS_LARGE_CALLOC(1, sizeof(http_addrlist_t))) != NULL)
     {
       addr = first;
       first->addr.un.sun_family = AF_LOCAL;
@@ -538,7 +538,7 @@ httpAddrGetList(const char *hostname,	// I - Hostname, IP address, or NULL for p
         if (current->ai_family == AF_INET || current->ai_family == AF_INET6)
 	{
 	  // Copy the address over...
-	  temp = (http_addrlist_t *)calloc(1, sizeof(http_addrlist_t));
+	  temp = (http_addrlist_t *)CUPS_LARGE_CALLOC(1, sizeof(http_addrlist_t));
 	  if (!temp)
 	  {
 	    httpAddrFreeList(first);
@@ -639,7 +639,7 @@ httpAddrGetList(const char *hostname,	// I - Hostname, IP address, or NULL for p
       if (family != AF_INET)
       {
         // Add [::1] to the address list...
-	temp = (http_addrlist_t *)calloc(1, sizeof(http_addrlist_t));
+	temp = (http_addrlist_t *)CUPS_LARGE_CALLOC(1, sizeof(http_addrlist_t));
 	if (!temp)
 	{
 	  _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
@@ -665,7 +665,7 @@ httpAddrGetList(const char *hostname,	// I - Hostname, IP address, or NULL for p
 #endif // AF_INET6
       {
         // Add 127.0.0.1 to the address list...
-	temp = (http_addrlist_t *)calloc(1, sizeof(http_addrlist_t));
+	temp = (http_addrlist_t *)CUPS_LARGE_CALLOC(1, sizeof(http_addrlist_t));
 	if (!temp)
 	{
 	  _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
@@ -691,7 +691,7 @@ httpAddrGetList(const char *hostname,	// I - Hostname, IP address, or NULL for p
       if (family != AF_INET)
       {
         // Add [::] to the address list...
-	temp = (http_addrlist_t *)calloc(1, sizeof(http_addrlist_t));
+	temp = (http_addrlist_t *)CUPS_LARGE_CALLOC(1, sizeof(http_addrlist_t));
 	if (!temp)
 	{
 	  _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
@@ -712,7 +712,7 @@ httpAddrGetList(const char *hostname,	// I - Hostname, IP address, or NULL for p
 #endif // AF_INET6
       {
         // Add 0.0.0.0 to the address list...
-	temp = (http_addrlist_t *)calloc(1, sizeof(http_addrlist_t));
+	temp = (http_addrlist_t *)CUPS_LARGE_CALLOC(1, sizeof(http_addrlist_t));
 	if (!temp)
 	{
 	  _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);

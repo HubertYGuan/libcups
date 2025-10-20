@@ -398,7 +398,7 @@ cupsCreateCredentials(
     goto done;
   }
 
-  san_list_head = calloc(1, sizeof(mbedtls_x509_san_list));
+  san_list_head = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_x509_san_list));
   if (!san_list_head)
   {
     DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -415,14 +415,14 @@ cupsCreateCredentials(
   if (!strchr(common_name, '.'))
   {
     // Add common_name.local to the list, too...
-    localname = (char *)malloc(256);  // hostname.local
+    localname = (char *)CUPS_LARGE_MALLOC(256);  // hostname.local
     if (!localname)
     {
       DEBUG_puts("Failed to allocate memory for subject alt name localname\n");
       goto done;
     }
     snprintf(localname, 256, "%s.local", common_name);
-    san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
+    san_list_cur->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_x509_san_list));
     if (!san_list_cur->next)
     {
       DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -444,7 +444,7 @@ cupsCreateCredentials(
     {
       if (strcmp(alt_names[i], "localhost"))
       {
-        san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
+        san_list_cur->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_x509_san_list));
         if (!san_list_cur->next)
         {
           DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -467,7 +467,7 @@ cupsCreateCredentials(
     goto done;
   }
 
-  ext_key_usage_head = calloc(1, sizeof(mbedtls_asn1_sequence));
+  ext_key_usage_head = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
   if (!ext_key_usage_head)
   {
     DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -480,7 +480,7 @@ cupsCreateCredentials(
   if (purpose & CUPS_CREDPURPOSE_SERVER_AUTH)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_SERVER_AUTH);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -493,7 +493,7 @@ cupsCreateCredentials(
   if (purpose & CUPS_CREDPURPOSE_CLIENT_AUTH)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CLIENT_AUTH);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -506,7 +506,7 @@ cupsCreateCredentials(
   if (purpose & CUPS_CREDPURPOSE_CODE_SIGNING)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CODE_SIGNING);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -519,7 +519,7 @@ cupsCreateCredentials(
   if (purpose & CUPS_CREDPURPOSE_EMAIL_PROTECTION)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_EMAIL_PROTECTION);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -533,7 +533,7 @@ cupsCreateCredentials(
   if (purpose & CUPS_CREDPURPOSE_OCSP_SIGNING)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_OCSP_SIGNING);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -620,8 +620,8 @@ cupsCreateCredentials(
         }
       }
     }
-    free(root_crtdata);
-    free(root_keydata);
+    CUPS_LARGE_FREE(root_crtdata);
+    CUPS_LARGE_FREE(root_keydata);
   }
 
   if (root_crt.serial.p && root_key_ctx.private_priv_id != 0)
@@ -729,7 +729,7 @@ cupsCreateCredentials(
   if (pkctx_is_init)
     mbedtls_pk_free(&pkctx);
   if (localname)
-    free(localname);
+    CUPS_LARGE_FREE(localname);
   if (san_list_head)
   {
     san_list_cur = san_list_head;
@@ -742,11 +742,11 @@ cupsCreateCredentials(
         * pointers were allocated while parsing from a user-provided string. */
       if (san_list_cur->node.type == MBEDTLS_X509_SAN_DIRECTORY_NAME) {
         mbedtls_x509_name *dn = &san_list_cur->node.san.directory_name;
-        free(dn->oid.p);
-        free(dn->val.p);
+        CUPS_LARGE_FREE(dn->oid.p);
+        CUPS_LARGE_FREE(dn->val.p);
         mbedtls_asn1_free_named_data_list(&dn->next);
       }
-      free(san_list_cur);
+      CUPS_LARGE_FREE(san_list_cur);
       san_list_cur = next;
     }
   }
@@ -988,7 +988,7 @@ cupsCreateCredentialsRequest(
     goto done;
   }
 
-  san_list_head = calloc(1, sizeof(mbedtls_x509_san_list));
+  san_list_head = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_x509_san_list));
   if (!san_list_head)
   {
     DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1005,14 +1005,14 @@ cupsCreateCredentialsRequest(
   if (!strchr(common_name, '.'))
   {
     // Add common_name.local to the list, too...
-    localname = (char *)malloc(256);  // hostname.local
+    localname = (char *)CUPS_LARGE_MALLOC(256);  // hostname.local
     if (!localname)
     {
       DEBUG_puts("Failed to allocate memory for subject alt name localname\n");
       goto done;
     }
     snprintf(localname, 256, "%s.local", common_name);
-    san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
+    san_list_cur->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_x509_san_list));
     if (!san_list_cur->next)
     {
       DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1034,7 +1034,7 @@ cupsCreateCredentialsRequest(
     {
       if (strcmp(alt_names[i], "localhost"))
       {
-        san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
+        san_list_cur->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_x509_san_list));
         if (!san_list_cur->next)
         {
           DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1057,7 +1057,7 @@ cupsCreateCredentialsRequest(
     goto done;
   }
 
-  ext_key_usage_head = calloc(1, sizeof(mbedtls_asn1_sequence));
+  ext_key_usage_head = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
   if (!ext_key_usage_head)
   {
     DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1070,7 +1070,7 @@ cupsCreateCredentialsRequest(
   if (purpose & CUPS_CREDPURPOSE_SERVER_AUTH)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_SERVER_AUTH);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1083,7 +1083,7 @@ cupsCreateCredentialsRequest(
   if (purpose & CUPS_CREDPURPOSE_CLIENT_AUTH)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CLIENT_AUTH);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1096,7 +1096,7 @@ cupsCreateCredentialsRequest(
   if (purpose & CUPS_CREDPURPOSE_CODE_SIGNING)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CODE_SIGNING);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1109,7 +1109,7 @@ cupsCreateCredentialsRequest(
   if (purpose & CUPS_CREDPURPOSE_EMAIL_PROTECTION)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_EMAIL_PROTECTION);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1123,7 +1123,7 @@ cupsCreateCredentialsRequest(
   if (purpose & CUPS_CREDPURPOSE_OCSP_SIGNING)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_OCSP_SIGNING);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1231,7 +1231,7 @@ cupsCreateCredentialsRequest(
   if (pkctx_is_init)
     mbedtls_pk_free(&pkctx);
   if (localname)
-    free(localname);
+    CUPS_LARGE_FREE(localname);
   if (san_list_head)
   {
     san_list_cur = san_list_head;
@@ -1244,11 +1244,11 @@ cupsCreateCredentialsRequest(
         * pointers were allocated while parsing from a user-provided string. */
       if (san_list_cur->node.type == MBEDTLS_X509_SAN_DIRECTORY_NAME) {
         mbedtls_x509_name *dn = &san_list_cur->node.san.directory_name;
-        free(dn->oid.p);
-        free(dn->val.p);
+        CUPS_LARGE_FREE(dn->oid.p);
+        CUPS_LARGE_FREE(dn->val.p);
         mbedtls_asn1_free_named_data_list(&dn->next);
       }
-      free(san_list_cur);
+      CUPS_LARGE_FREE(san_list_cur);
       san_list_cur = next;
     }
   }
@@ -1488,7 +1488,7 @@ cupsGetCredentialsTrust(
       }
     }
 
-    free(tcreds);
+    CUPS_LARGE_FREE(tcreds);
   }
   else if ((cg->validate_certs || require_ca) && !cupsAreCredentialsValidForName(common_name, credentials))
   {
@@ -1518,7 +1518,7 @@ cupsGetCredentialsTrust(
 	if (trust != HTTP_TRUST_OK)
 	  _cupsSetError(IPP_STATUS_ERROR_CUPS_PKI, _("Credentials do not validate against site CA certificate."), true);
 
-	free(tcreds);
+	CUPS_LARGE_FREE(tcreds);
       }
     }
   }
@@ -1839,7 +1839,7 @@ cupsSignCredentialsRequest(
   }
 
   mbedtls_x509_sequence *csr_cur = &csr.subject_alt_names;
-  san_list_head = calloc(1, sizeof(mbedtls_x509_san_list));
+  san_list_head = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_x509_san_list));
   if (!san_list_head)
   {
     DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1871,7 +1871,7 @@ cupsSignCredentialsRequest(
   
   while (csr_cur)
     {
-      san_list_cur->next = calloc(1, sizeof(mbedtls_x509_san_list));
+      san_list_cur->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_x509_san_list));
       if (!san_list_cur->next)
       {
         DEBUG_puts("Failed to allocate memory for subject alt name list\n");
@@ -1902,7 +1902,7 @@ cupsSignCredentialsRequest(
       csr_cur = csr_cur->next;
     }
 
-  ext_key_usage_head = calloc(1, sizeof(mbedtls_asn1_sequence));
+  ext_key_usage_head = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
   if (!ext_key_usage_head)
   {
     DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1915,7 +1915,7 @@ cupsSignCredentialsRequest(
   if (allowed_purpose == 0 || allowed_purpose & CUPS_CREDPURPOSE_SERVER_AUTH)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_SERVER_AUTH);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1928,7 +1928,7 @@ cupsSignCredentialsRequest(
   if (allowed_purpose & CUPS_CREDPURPOSE_CLIENT_AUTH)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CLIENT_AUTH);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1941,7 +1941,7 @@ cupsSignCredentialsRequest(
   if (allowed_purpose & CUPS_CREDPURPOSE_CODE_SIGNING)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_CODE_SIGNING);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1954,7 +1954,7 @@ cupsSignCredentialsRequest(
   if (allowed_purpose & CUPS_CREDPURPOSE_EMAIL_PROTECTION)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_EMAIL_PROTECTION);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -1968,7 +1968,7 @@ cupsSignCredentialsRequest(
   if (purpose & CUPS_CREDPURPOSE_OCSP_SIGNING)
   {
     SET_OID(ext_key_usage_tail->buf, MBEDTLS_OID_OCSP_SIGNING);
-    ext_key_usage_tail->next = calloc(1, sizeof(mbedtls_asn1_sequence));
+    ext_key_usage_tail->next = CUPS_LARGE_CALLOC(1, sizeof(mbedtls_asn1_sequence));
     if (!ext_key_usage_tail)
     {
       DEBUG_puts("Failed to allocate memory for ext_key_usage list\n");
@@ -2068,8 +2068,8 @@ cupsSignCredentialsRequest(
       }
     }
   }
-  free(root_crtdata);
-  free(root_keydata);
+  CUPS_LARGE_FREE(root_crtdata);
+  CUPS_LARGE_FREE(root_keydata);
 
   if (root_crt.serial.p && root_key_ctx.private_priv_id != 0)
   {
@@ -2156,11 +2156,11 @@ cupsSignCredentialsRequest(
         * pointers were allocated while parsing from a user-provided string. */
       if (san_list_cur->node.type == MBEDTLS_X509_SAN_DIRECTORY_NAME) {
         mbedtls_x509_name *dn = &san_list_cur->node.san.directory_name;
-        free(dn->oid.p);
-        free(dn->val.p);
+        CUPS_LARGE_FREE(dn->oid.p);
+        CUPS_LARGE_FREE(dn->val.p);
         mbedtls_asn1_free_named_data_list(&dn->next);
       }
-      free(san_list_cur);
+      CUPS_LARGE_FREE(san_list_cur);
       san_list_cur = next;
     }
   }
@@ -2216,15 +2216,15 @@ httpCopyPeerCredentials(http_t *http)	// I - HTTP connection
           mbedtls_strerror(err, error_str, sizeof(error_str));
           DEBUG_printf("Failed to calculate PEM buffer size: %s\n", error_str);
           if (credentials)
-            free(credentials);
+            CUPS_LARGE_FREE(credentials);
           return NULL;
         }
-        pem = malloc(pemsize);
+        pem = CUPS_LARGE_MALLOC(pemsize);
         if (!pem)
         {
           DEBUG_puts("Failed to allocate PEM buffer\n");
           if (credentials)
-            free(credentials);
+            CUPS_LARGE_FREE(credentials);
           return NULL;
         }
         err = mbedtls_pem_write_buffer(PEM_BEGIN_CRT, PEM_END_CRT, crt->raw.p, crt->raw.len, pem, pemsize, &pemsize2);
@@ -2233,20 +2233,20 @@ httpCopyPeerCredentials(http_t *http)	// I - HTTP connection
           mbedtls_strerror(err, error_str, sizeof(error_str));
           DEBUG_printf("Failed to write PEM buffer: %s\n", error_str);
           if (credentials)
-            free(credentials);
-          free(pem);
+            CUPS_LARGE_FREE(credentials);
+          CUPS_LARGE_FREE(pem);
           return NULL;
         }
         if (pemsize != pemsize2)
         {
           DEBUG_printf("Calculated size does not match written size: Calc: %ul Written: %ul\n", pemsize, pemsize2);
           if (credentials)
-            free(credentials);
-          free(pem);
+            CUPS_LARGE_FREE(credentials);
+          CUPS_LARGE_FREE(pem);
           return NULL;
         }
 
-        if (pem && (credentials = realloc(credentials, alloc_creds + (pemsize = strlen(pem)) + 1)) != NULL)
+        if (pem && (credentials = CUPS_LARGE_REALLOC(credentials, alloc_creds + (pemsize = strlen(pem)) + 1)) != NULL)
         {
           // Copy PEM-encoded data...
           memcpy(credentials + alloc_creds, pem, pemsize);
@@ -2254,7 +2254,7 @@ httpCopyPeerCredentials(http_t *http)	// I - HTTP connection
           alloc_creds += pemsize;
         }
 
-        free(pem);
+        CUPS_LARGE_FREE(pem);
         cur = cur->next;
       }
     }
@@ -2284,7 +2284,7 @@ _httpCreateCredentials(
 
   DEBUG_printf("_httpCreateCredentials(credentials=\"%s\", key=\"%s\")", credentials, key);
 
-  if ((hcreds = calloc(1, sizeof(_http_tls_credentials_t))) == NULL)
+  if ((hcreds = CUPS_LARGE_CALLOC(1, sizeof(_http_tls_credentials_t))) == NULL)
     return (NULL);
 
   mbedtls_x509_crt_init(&hcreds->crt);
@@ -2351,7 +2351,7 @@ _httpFreeCredentials(
 
   mbedtls_x509_crt_free(&hcreds->crt);
   mbedtls_pk_free(&hcreds->pkctx);
-  free(hcreds);
+  CUPS_LARGE_FREE(hcreds);
 }
 
 
@@ -2699,7 +2699,7 @@ _httpTLSStart(http_t *http)		// I - Connection to server
 
     DEBUG_printf("4_httpTLSStart: Using certificate \"%s\" and private key \"%s\".", crtfile, keyfile);
 
-    if ((credentials = calloc(1, sizeof(_http_tls_credentials_t))) == NULL)
+    if ((credentials = CUPS_LARGE_CALLOC(1, sizeof(_http_tls_credentials_t))) == NULL)
     {
       DEBUG_puts("4_httpTLSStart: cupsCreateCredentials failed.");
       http->error  = errno = EINVAL;

@@ -21,11 +21,46 @@
 #ifdef CONFIG_CUPS_USE_EXTERNAL_HEAP
 void *CUPS_LARGE_CALLOC(size_t nelem, size_t elsize)
 {
-  void *x = CUPS_LARGE_MALLOC(nelem * elsize);
+  DEBUG_printf("cupslargecalloc: attempting to calloc %lu bytes", nelem * elsize);
+  void *x = shared_multi_heap_alloc(SMH_REG_ATTR_EXTERNAL, nelem * elsize);
   if (x == NULL)
     return NULL;
   return memset(x, 0, nelem * elsize);
 }
+
+// Originally from picolibc
+void *
+CUPS_LARGE_REALLOC (void *old_ptr, size_t new_size)
+{
+  void *new_ptr = CUPS_LARGE_MALLOC (new_size);
+
+  if (old_ptr && new_ptr)
+    {
+      size_t old_size = *(size_t *)((long long *)old_ptr - 1);
+      size_t copy_size = old_size > new_size ? new_size : old_size;
+      memcpy (new_ptr, old_ptr, copy_size);
+      CUPS_LARGE_FREE (old_ptr);
+    }
+
+  return new_ptr;
+}
+
+char *
+CUPS_LARGE_STRDUP (const char *str)
+{
+  // Original from picolibc
+  size_t len = strlen (str) + 1;
+  char *copy = CUPS_LARGE_MALLOC (len);
+  if (copy)
+    {
+      memcpy (copy, str, len);
+    }
+  return copy;
+}
+
+// inline static bool esp_ptr_in_dram(const void *p) {
+//   return ((intptr_t)p >= SOC_DRAM_LOW && (intptr_t)p < SOC_DRAM_HIGH);
+// }
 #endif
 
 //
@@ -51,7 +86,7 @@ cupsFreeJobs(size_t     num_jobs,	// I - Number of jobs
     _cupsStrFree(job->title);
   }
 
-  free(jobs);
+  CUPS_LARGE_FREE(jobs);
 }
 
 
@@ -319,9 +354,9 @@ cupsGetJobs(http_t           *http,	// I - Connection to server or `CUPS_HTTP_DE
 
       // Allocate memory for the job...
       if (n == 0)
-        temp = malloc(sizeof(cups_job_t));
+        temp = CUPS_LARGE_MALLOC(sizeof(cups_job_t));
       else
-	temp = realloc(*jobs, sizeof(cups_job_t) * (size_t)(n + 1));
+	temp = CUPS_LARGE_REALLOC(*jobs, sizeof(cups_job_t) * (size_t)(n + 1));
 
       if (!temp)
       {

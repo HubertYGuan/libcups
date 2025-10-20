@@ -11,6 +11,7 @@
 #include "pwg-private.h"
 #include "test-internal.h"
 #include <ctype.h>
+#include "cups-private.h"
 
 
 //

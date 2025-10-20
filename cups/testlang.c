@@ -18,6 +18,7 @@
 #include "dir.h"
 #include "language.h"
 #include "test-internal.h"
+#include "cups-private.h"
 
 
 //

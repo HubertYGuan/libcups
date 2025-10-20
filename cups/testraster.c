@@ -12,6 +12,7 @@
 #include "raster-private.h"
 #include "test-internal.h"
 #include <math.h>
+#include "cups-private.h"
 
 
 //
@@ -87,7 +88,7 @@ do_ras_file(const char *filename)	// I - Filename
   while (cupsRasterReadHeader(ras, &header))
   {
     pages ++;
-    data = malloc(header.cupsBytesPerLine);
+    data = CUPS_LARGE_MALLOC(header.cupsBytesPerLine);
 
     printf("    Page %u: %ux%ux%u@%ux%udpi", pages,
            header.cupsWidth, header.cupsHeight, header.cupsBitsPerPixel,
@@ -103,7 +104,7 @@ do_ras_file(const char *filename)	// I - Filename
     else
       putchar('\n');
 
-    free(data);
+    CUPS_LARGE_FREE(data);
   }
 
   if ((errmsg = cupsRasterGetErrorString()) != NULL)

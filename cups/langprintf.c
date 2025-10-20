@@ -194,7 +194,7 @@ cupsLangSetLocale(char *argv[])		// IO - Command-line arguments
 
       // Save the new string if it differs from the original...
       if (strcmp(buffer, argv[i]))
-        argv[i] = strdup(buffer);
+        argv[i] = CUPS_LARGE_STRDUP(buffer);
     }
   }
 }

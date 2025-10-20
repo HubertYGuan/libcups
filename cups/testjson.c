@@ -10,6 +10,7 @@
 #include "cups.h"
 #include "json.h"
 #include "test-internal.h"
+#include "cups-private.h"
 
 
 //
@@ -19,7 +20,7 @@
 void					// O - Exit status
 testjson_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 {
-  LOG_MODULE_DECLARE(libcups);
+  
   int		i;			// Looping var
   cups_json_t	*json;			// JSON root object
   int		argc = 1;		// Number of command-line arguments
@@ -210,7 +211,7 @@ testjson_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
       testEnd(parent != NULL);
 
       cupsJSONDelete(parent);
-      free(s);
+      CUPS_LARGE_FREE(s);
     }
     else
     {

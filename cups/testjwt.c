@@ -10,6 +10,7 @@
 #include "cups.h"
 #include "jwt.h"
 #include "test-internal.h"
+#include "cups-private.h"
 
 
 //
@@ -119,7 +120,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     if ((temp = cupsJSONExportString(jwk)) != NULL)
     {
       puts(temp);
-      free(temp);
+      CUPS_LARGE_FREE(temp);
     }
 
     testBegin("cupsJWTSign(HS256)");
@@ -137,7 +138,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     if ((temp = cupsJSONExportString(jwk)) != NULL)
     {
       puts(temp);
-      free(temp);
+      CUPS_LARGE_FREE(temp);
     }
 
     testBegin("cupsJWTMakePublicKey(RS256)");
@@ -147,7 +148,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     if ((temp = cupsJSONExportString(pubjwk)) != NULL)
     {
       puts(temp);
-      free(temp);
+      CUPS_LARGE_FREE(temp);
     }
 
     testBegin("cupsJWTSign(RS256)");
@@ -178,7 +179,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     if ((temp = cupsJSONExportString(jwk)) != NULL)
     {
       puts(temp);
-      free(temp);
+      CUPS_LARGE_FREE(temp);
     }
 
     testBegin("cupsJWTMakePublicKey(ES256)");
@@ -188,7 +189,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     if ((temp = cupsJSONExportString(pubjwk)) != NULL)
     {
       puts(temp);
-      free(temp);
+      CUPS_LARGE_FREE(temp);
     }
 
     testBegin("cupsJWTSign(ES256)");
@@ -207,7 +208,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     if ((temp = cupsJSONExportString(jwk)) != NULL)
     {
       puts(temp);
-      free(temp);
+      CUPS_LARGE_FREE(temp);
     }
 
     testBegin("cupsJWTMakePublicKey(ES384)");
@@ -217,7 +218,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     if ((temp = cupsJSONExportString(pubjwk)) != NULL)
     {
       puts(temp);
-      free(temp);
+      CUPS_LARGE_FREE(temp);
     }
 
     testBegin("cupsJWTSign(ES384)");
@@ -236,7 +237,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     if ((temp = cupsJSONExportString(jwk)) != NULL)
     {
       puts(temp);
-      free(temp);
+      CUPS_LARGE_FREE(temp);
     }
 
     testBegin("cupsJWTMakePublicKey(ES512)");
@@ -246,7 +247,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
     if ((temp = cupsJSONExportString(pubjwk)) != NULL)
     {
       puts(temp);
-      free(temp);
+      CUPS_LARGE_FREE(temp);
     }
 
     testBegin("cupsJWTSign(ES512)");
@@ -301,7 +302,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 	testEnd(true);
 	s = cupsJSONExportString(jwk);
 	testMessage("jwk=\"%s\"", s);
-	free(s);
+	CUPS_LARGE_FREE(s);
 
 	testBegin("cupsJWTNew(NULL, NULL)");
 	jwt = cupsJWTNew(NULL, NULL);
@@ -345,7 +346,7 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
 	testEnd(true);
 	s = cupsJSONExportString(jwk);
 	testMessage("jwk=\"%s\"", s);
-	free(s);
+	CUPS_LARGE_FREE(s);
 
 	testBegin("cupsJWTNew(NULL, NULL)");
 	jwt = cupsJWTNew(NULL, NULL);
@@ -450,13 +451,13 @@ testjwt_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
         if ((temp = cupsJSONExportString(headers)) != NULL)
         {
           printf("\njose=%s\n", temp);
-          free(temp);
+          CUPS_LARGE_FREE(temp);
 	}
 
         if ((temp = cupsJSONExportString(claims)) != NULL)
         {
           printf("\nclaims=%s\n", temp);
-          free(temp);
+          CUPS_LARGE_FREE(temp);
 	}
 
         cupsJWTDelete(jwt);

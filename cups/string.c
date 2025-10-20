@@ -505,7 +505,6 @@ _cupsStrAlloc(const char *s)		// I - String
   _cups_sp_item_t	*item,		// String pool item
 			*key;		// Search key
 
-
   // Range check input...
   if (!s)
     return (NULL);
@@ -519,6 +518,7 @@ _cupsStrAlloc(const char *s)		// I - String
   if (!stringpool)
   {
     cupsMutexUnlock(&sp_mutex);
+    DEBUG_printf("_cupsStrAlloc: could not allocate stringpool, returning null");
     return (NULL);
   }
 
@@ -543,6 +543,7 @@ _cupsStrAlloc(const char *s)		// I - String
 
   // Not found, so allocate a new one...
   slen = strlen(s);
+  item = (_cups_sp_item_t *)CUPS_LARGE_CALLOC(1, sizeof(_cups_sp_item_t) + slen);
   if (!item)
   {
     cupsMutexUnlock(&sp_mutex);
@@ -581,7 +582,7 @@ _cupsStrFlush(void)
   cupsMutexLock(&sp_mutex);
 
   for (item = (_cups_sp_item_t *)cupsArrayGetFirst(stringpool); item; item = (_cups_sp_item_t *)cupsArrayGetNext(stringpool))
-    free(item);
+    CUPS_LARGE_FREE(item);
 
   cupsArrayDelete(stringpool);
   stringpool = NULL;
@@ -698,7 +699,7 @@ _cupsStrFree(const char *s)		// I - String to free
 
     if (!item->ref_count)
     {
-      // Remove and free...
+      // Remove and CUPS_LARGE_FREE...
       cupsArrayRemove(stringpool, item);
 
       CUPS_LARGE_FREE(item);

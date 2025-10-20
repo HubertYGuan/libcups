@@ -31,7 +31,7 @@ _cupsDirCreate(const char *path,	// I - Directory path
 
 
   // Copy the path
-  if ((copypath = strdup(path)) == NULL)
+  if ((copypath = CUPS_LARGE_STRDUP(path)) == NULL)
     return (false);
 
   // Create any intermediate paths as needed...
@@ -48,7 +48,7 @@ _cupsDirCreate(const char *path,	// I - Directory path
   }
 
   // Free the copy of the path and then make the last component...
-  free(copypath);
+  CUPS_LARGE_FREE(copypath);
   if (ret && mkdir(path, mode) && errno != EEXIST)
     ret = false;
 
@@ -109,7 +109,7 @@ cupsDirClose(cups_dir_t *dp)		// I - Directory pointer
     FindClose(dp->dir);
 
   // Free memory used...
-  free(dp);
+  CUPS_LARGE_FREE(dp);
 }
 
 
@@ -128,7 +128,7 @@ cupsDirOpen(const char *directory)	// I - Directory name
     return (NULL);
 
   // Allocate memory for the directory structure...
-  dp = (cups_dir_t *)calloc(1, sizeof(cups_dir_t));
+  dp = (cups_dir_t *)CUPS_LARGE_CALLOC(1, sizeof(cups_dir_t));
   if (!dp)
     return (NULL);
 
@@ -249,9 +249,9 @@ cupsDirClose(cups_dir_t *dp)		// I - Directory pointer
   if (!dp)
     return;
 
-  // Close the directory and free memory...
+  // Close the directory and CUPS_LARGE_FREE memory...
   closedir(dp->dir);
-  free(dp);
+  CUPS_LARGE_FREE(dp);
 }
 
 
@@ -272,7 +272,7 @@ cupsDirOpen(const char *directory)	// I - Directory name
     return (NULL);
 
   // Allocate memory for the directory structure...
-  dp = (cups_dir_t *)calloc(1, sizeof(cups_dir_t));
+  dp = (cups_dir_t *)CUPS_LARGE_CALLOC(1, sizeof(cups_dir_t));
   if (!dp)
     return (NULL);
 
@@ -280,7 +280,7 @@ cupsDirOpen(const char *directory)	// I - Directory name
   dp->dir = opendir(directory);
   if (!dp->dir)
   {
-    free(dp);
+    CUPS_LARGE_FREE(dp);
     return (NULL);
   }
 

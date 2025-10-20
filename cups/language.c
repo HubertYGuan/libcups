@@ -242,7 +242,7 @@ cupsLangLoadStrings(
       return (false);
     }
 
-    if ((ptr = malloc((size_t)(fileinfo.st_size + 1))) == NULL)
+    if ((ptr = CUPS_LARGE_MALLOC((size_t)(fileinfo.st_size + 1))) == NULL)
     {
       _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
       close(fd);
@@ -253,7 +253,7 @@ cupsLangLoadStrings(
     {
       _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
       close(fd);
-      free(ptr);
+      CUPS_LARGE_FREE(ptr);
       return (false);
     }
 
@@ -497,7 +497,7 @@ cupsLangLoadStrings(
 
     if (num_messages >= lang->alloc_messages)
     {
-      if ((m = realloc(lang->messages, (lang->alloc_messages + 1024) * sizeof(_cups_message_t))) == NULL)
+      if ((m = CUPS_LARGE_REALLOC(lang->messages, (lang->alloc_messages + 1024) * sizeof(_cups_message_t))) == NULL)
       {
         _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
         ret = false;
@@ -533,7 +533,7 @@ cupsLangLoadStrings(
 
   // Free temporary storage and return...
   if (data != strings)
-    free((void *)data);
+    CUPS_LARGE_FREE((void *)data);
 
   return (ret);
 }
@@ -550,8 +550,8 @@ cupsLangSetDirectory(const char *d)	// I - Directory name
   {
     cupsMutexLock(&lang_mutex);
 
-    free(lang_directory);
-    lang_directory = strdup(d);
+    CUPS_LARGE_FREE(lang_directory);
+    lang_directory = CUPS_LARGE_STRDUP(d);
 
     cupsMutexUnlock(&lang_mutex);
   }
@@ -571,7 +571,7 @@ cups_lang_new(const char *language)	// I - Language name
 
 
   // Create an empty language data structure...
-  if ((lang = calloc(1, sizeof(cups_lang_t))) == NULL)
+  if ((lang = CUPS_LARGE_CALLOC(1, sizeof(cups_lang_t))) == NULL)
     return (NULL);
 
   cupsRWInit(&lang->rwlock);
@@ -629,8 +629,8 @@ cups_lang_new(const char *language)	// I - Language name
       _cupsStrFree(lang->messages[i].text);
     }
 
-    free(lang->messages);
-    free(lang);
+    CUPS_LARGE_FREE(lang->messages);
+    CUPS_LARGE_FREE(lang);
 
     return (NULL);
   }

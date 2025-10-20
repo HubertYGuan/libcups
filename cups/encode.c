@@ -363,7 +363,7 @@ _cupsEncodeOption(
   if (count > 1)
   {
     // Make a copy of the value we can fiddle with...
-    if ((copy = strdup(value)) == NULL)
+    if ((copy = CUPS_LARGE_STRDUP(value)) == NULL)
     {
       // Ran out of memory!
       DEBUG_puts("1_cupsEncodeOption: Ran out of memory for value copy.");
@@ -503,7 +503,7 @@ _cupsEncodeOption(
 	  {
 	    cupsFreeOptions(num_cols, cols);
 
-	    free(copy);
+	    CUPS_LARGE_FREE(copy);
 
 	    ippDeleteAttribute(ipp, attr);
 	    return (NULL);
@@ -520,7 +520,7 @@ _cupsEncodeOption(
     }
   }
 
-  free(copy);
+  CUPS_LARGE_FREE(copy);
 
   return (attr);
 }

@@ -194,7 +194,7 @@ cupsJSONExportFile(
   if ((fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0664)) < 0)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
-    free(s);
+    CUPS_LARGE_FREE(s);
     return (false);
   }
 
@@ -203,12 +203,12 @@ cupsJSONExportFile(
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     close(fd);
     unlink(filename);
-    free(s);
+    CUPS_LARGE_FREE(s);
     return (false);
   }
 
   close(fd);
-  free(s);
+  CUPS_LARGE_FREE(s);
 
   return (true);
 }
@@ -218,7 +218,7 @@ cupsJSONExportFile(
 // 'cupsJSONExportString()' - Save a JSON node tree to a string.
 //
 // This function saves a JSON node tree to an allocated string.  The resulting
-// string must be freed using the `free` function.
+// string must be freed using the `CUPS_LARGE_FREE` function.
 //
 
 char *					// O - JSON string or `NULL` on error
@@ -319,7 +319,7 @@ cupsJSONExportString(cups_json_t *json)	// I - JSON root node
   DEBUG_printf("2cupsJSONExportString: length=%u", (unsigned)length);
 
   // Allocate memory and fill it up...
-  if ((s = malloc(length)) == NULL)
+  if ((s = CUPS_LARGE_MALLOC(length)) == NULL)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     DEBUG_puts("3cupsJSONExportString: Returning NULL.");
@@ -659,7 +659,7 @@ cupsJSONImportFile(const char *filename)// I - JSON filename
   }
 
   // Allocate memory for the JSON file...
-  if ((s = malloc(entry.size + 1)) == NULL)
+  if ((s = CUPS_LARGE_MALLOC(entry.size + 1)) == NULL)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     fs_close(&zfp);
@@ -672,7 +672,7 @@ cupsJSONImportFile(const char *filename)// I - JSON filename
     errno = bytes;
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     fs_close(&zfp);
-    free(s);
+    CUPS_LARGE_FREE(s);
     return (NULL);
   }
 
@@ -683,7 +683,7 @@ cupsJSONImportFile(const char *filename)// I - JSON filename
   json = cupsJSONImportString(s);
 
   // Free the string and return...
-  free(s);
+  CUPS_LARGE_FREE(s);
 
   return (json);
 }
@@ -857,7 +857,7 @@ cupsJSONImportString(const char *s)	// I - JSON string
 	DEBUG_puts("2cupsJSONImportString: Unable to allocate key/string node.");
         goto error;
       }
-      else if ((current->value.string = malloc(len)) == NULL)
+      else if ((current->value.string = CUPS_LARGE_MALLOC(len)) == NULL)
       {
         _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
         goto error;
@@ -1262,7 +1262,7 @@ cupsJSONImportURL(
     if ((length = (size_t)httpGetLength(http)) == 0 || length > 65536)
       length = 65536;			// Accept up to 64k
 
-    if ((data = calloc(1, length + 1)) != NULL)
+    if ((data = CUPS_LARGE_CALLOC(1, length + 1)) != NULL)
     {
       // Read the data into the string...
       for (dataptr = data, dataend = data + length; dataptr < dataend; dataptr += bytes)
@@ -1285,11 +1285,11 @@ cupsJSONImportURL(
   // Close the connection...
   httpClose(http);
 
-  // Load the JSON data, free the string, and return...
+  // Load the JSON data, CUPS_LARGE_FREE the string, and return...
   if (data)
   {
     json = cupsJSONImportString(data);
-    free(data);
+    CUPS_LARGE_FREE(data);
   }
 
   return (json);
@@ -1313,7 +1313,7 @@ cupsJSONNew(cups_json_t  *parent,	// I - Parent JSON node or `NULL` for a root n
     return (NULL);
 
   // Allocate the node...
-  if ((node = calloc(1, sizeof(cups_json_t))) != NULL)
+  if ((node = CUPS_LARGE_CALLOC(1, sizeof(cups_json_t))) != NULL)
   {
     node->type = type;
 
@@ -1335,7 +1335,7 @@ cupsJSONNewKey(cups_json_t *parent,	// I - Parent JSON node or `NULL` for a root
                const char  *value)	// I - Key string
 {
   cups_json_t	*node;			// JSON node
-  char		*s = strdup(value);	// Key string
+  char		*s = CUPS_LARGE_STRDUP(value);	// Key string
 
 
   if (!s)
@@ -1344,7 +1344,7 @@ cupsJSONNewKey(cups_json_t *parent,	// I - Parent JSON node or `NULL` for a root
   if ((node = cupsJSONNew(parent, after, CUPS_JTYPE_KEY)) != NULL)
     node->value.string = s;
   else
-    free(s);
+    CUPS_LARGE_FREE(s);
 
   return (node);
 }
@@ -1379,7 +1379,7 @@ cupsJSONNewString(cups_json_t *parent,	// I - Parent JSON node or `NULL` for a r
 		  const char  *value)	// I - String value
 {
   cups_json_t	*node;			// JSON node
-  char		*s = strdup(value);	// String value
+  char		*s = CUPS_LARGE_STRDUP(value);	// String value
 
 
   if (!s)
@@ -1388,7 +1388,7 @@ cupsJSONNewString(cups_json_t *parent,	// I - Parent JSON node or `NULL` for a r
   if ((node = cupsJSONNew(parent, after, CUPS_JTYPE_STRING)) != NULL)
     node->value.string = s;
   else
-    free(s);
+    CUPS_LARGE_FREE(s);
 
   return (node);
 }
@@ -1426,7 +1426,7 @@ delete_json(cups_json_t *json)		// I - JSON node
 
           if (sibling->sibling)
           {
-            // More siblings at this level, free the parent...
+            // More siblings at this level, CUPS_LARGE_FREE the parent...
             sibling = sibling->sibling;
             free_json(temp);
             break;
@@ -1459,8 +1459,8 @@ static void
 free_json(cups_json_t *json)		// I - JSON node
 {
   if (json->type == CUPS_JTYPE_KEY || json->type == CUPS_JTYPE_STRING)
-    free(json->value.string);
+    CUPS_LARGE_FREE(json->value.string);
 
-  free(json);
+  CUPS_LARGE_FREE(json);
 }
 

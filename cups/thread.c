@@ -242,7 +242,7 @@ cupsThreadCreate(
   if (!func)
     return (CUPS_THREAD_INVALID);
 
-  if ((thread = (cups_thread_t)calloc(1, sizeof(struct _cups_thread_s))) == NULL)
+  if ((thread = (cups_thread_t)CUPS_LARGE_CALLOC(1, sizeof(struct _cups_thread_s))) == NULL)
     return (CUPS_THREAD_INVALID);
 
   thread->func = func;
@@ -251,7 +251,7 @@ cupsThreadCreate(
 
   if (thread->h == 0 || thread->h == (HANDLE)-1)
   {
-    free(thread);
+    CUPS_LARGE_FREE(thread);
     return (CUPS_THREAD_INVALID);
   }
 
@@ -297,7 +297,7 @@ cupsThreadWait(cups_thread_t thread)	// I - Thread ID
 
   retval = thread->retval;
 
-  free(thread);
+  CUPS_LARGE_FREE(thread);
 
   return (retval);
 }
@@ -316,7 +316,7 @@ win32_self(void)
   if ((thread = TlsGetValue(win32_tls())) == NULL)
   {
     // Main thread, so create the info we need...
-    if ((thread = (cups_thread_t)calloc(1, sizeof(struct _cups_thread_s))) != NULL)
+    if ((thread = (cups_thread_t)CUPS_LARGE_CALLOC(1, sizeof(struct _cups_thread_s))) != NULL)
     {
       thread->h = GetCurrentThread();
       TlsSetValue(win32_tls(), thread);
@@ -324,7 +324,7 @@ win32_self(void)
       if (setjmp(thread->jumpbuf))
       {
         if (!thread->h)
-          free(thread);
+          CUPS_LARGE_FREE(thread);
 
         _endthreadex(0);
       }
@@ -400,7 +400,7 @@ win32_wrapper(cups_thread_t thread)	// I - Thread
 
   // Free if detached...
   if (!thread->h)
-    free(thread);
+    CUPS_LARGE_FREE(thread);
 
   return (0);
 }

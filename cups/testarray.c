@@ -14,6 +14,7 @@
 #include "cups.h"
 #include "dir.h"
 #include "test-internal.h"
+#include "cups-private.h"
 
 //
 // Local functions...
@@ -51,7 +52,7 @@ testarray_main(void *p1, void *p2, void *p3)
   testBegin("cupsArrayNew");
 
   data  = (void *)"testarray";
-  array = cupsArrayNew((cups_array_cb_t)strcmp, data, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
+  array = cupsArrayNew((cups_array_cb_t)strcmp, data, NULL, 0, (cups_acopy_cb_t)CUPS_LARGE_STRDUP, (cups_afree_cb_t)CUPS_LARGE_FREE);
 
   if (array)
   {
@@ -247,7 +248,7 @@ testarray_main(void *p1, void *p2, void *p3)
 
     while ((dent = cupsDirRead(dir)) != NULL)
     {
-      if (!strcmp(dent->filename, "md2pdf.md")) // put in file of choice here
+      if (!strcmp(dent->filename, "testipp.test")) // put in file of choice here
       {
         char abs_path[256];
         snprintf(abs_path, sizeof(abs_path) - 1, "/lfs/%s", dent->filename);
@@ -267,7 +268,7 @@ testarray_main(void *p1, void *p2, void *p3)
 
       for (text = (char *)cupsArrayGetFirst(array); text;)
       {
-        // Copy this word to the word buffer (safe because we strdup'd from
+        // Copy this word to the word buffer (safe because we CUPS_LARGE_STRDUP'd from
 	// the same buffer in the first place... :)
 	cupsCopyString(word, text, sizeof(word));
 
@@ -502,8 +503,11 @@ load_words(const char   *filename,	// I - File to load
     return (0);
   }
 
-  while (fs_read(&zfp, word, 16) > 0)
+  int i = 0;
+
+  while (fs_read(&zfp, word, 16) > 0 && i < 16)
   {
+    ++i;
     if (!cupsArrayFind(array, word))
       cupsArrayAdd(array, word);
   }

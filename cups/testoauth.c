@@ -24,6 +24,7 @@
 #include "cups.h"
 #include "oauth.h"
 #include "test-internal.h"
+#include "cups-private.h"
 
 
 //
@@ -491,9 +492,9 @@ unit_tests(const char *oauth_uri,	// I - Authorization Server URI
   done:
 
   cupsJSONDelete(metadata);
-  free(auth_code);
-  free(access_token);
-  free(refresh_token);
+  CUPS_LARGE_FREE(auth_code);
+  CUPS_LARGE_FREE(access_token);
+  CUPS_LARGE_FREE(refresh_token);
   cupsJWTDelete(user_id);
 
   return (testsPassed ? 0 : 1);

@@ -970,7 +970,7 @@ cupsGetCredentialsTrust(
       }
     }
 
-    free(tcreds);
+    CUPS_LARGE_FREE(tcreds);
   }
   else if ((cg->validate_certs || require_ca) && !cupsAreCredentialsValidForName(common_name, credentials))
   {
@@ -1000,7 +1000,7 @@ cupsGetCredentialsTrust(
 	if (trust != HTTP_TRUST_OK)
 	  _cupsSetError(IPP_STATUS_ERROR_CUPS_PKI, _("Credentials do not validate against site CA certificate."), true);
 
-	free(tcreds);
+	CUPS_LARGE_FREE(tcreds);
       }
     }
   }
@@ -1529,7 +1529,7 @@ httpCopyPeerCredentials(http_t *http)	// I - Connection to server
 	    if ((bytes = BIO_get_mem_data(bio, &buffer)) > 0)
 	    {
 	      // Expand credentials string...
-	      if ((credentials = realloc(credentials, alloc_creds + (size_t)bytes + 1)) != NULL)
+	      if ((credentials = CUPS_LARGE_REALLOC(credentials, alloc_creds + (size_t)bytes + 1)) != NULL)
 	      {
 	        // Copy PEM-encoded data...
 	        memcpy(credentials + alloc_creds, buffer, bytes);
@@ -1571,7 +1571,7 @@ _httpCreateCredentials(
   if (!credentials || !*credentials || !key || !*key)
     return (NULL);
 
-  if ((hcreds = calloc(1, sizeof(_http_tls_credentials_t))) == NULL)
+  if ((hcreds = CUPS_LARGE_CALLOC(1, sizeof(_http_tls_credentials_t))) == NULL)
     return (NULL);
 
   hcreds->use = 1;
@@ -1624,7 +1624,7 @@ _httpFreeCredentials(
     return;
 
   sk_X509_free(hcreds->certs);
-  free(hcreds);
+  CUPS_LARGE_FREE(hcreds);
 }
 
 
@@ -2502,7 +2502,7 @@ openssl_load_crl(void)
 	{
 	  if (alloc_data == 0)
 	  {
-	    data       = malloc(2048);
+	    data       = CUPS_LARGE_MALLOC(2048);
 	    alloc_data = 2048;
 
 	    if (!data)
@@ -2510,7 +2510,7 @@ openssl_load_crl(void)
 	  }
 	  else if ((num_data + strlen(line)) >= alloc_data)
 	  {
-	    unsigned char *tdata = realloc(data, alloc_data + 1024);
+	    unsigned char *tdata = CUPS_LARGE_REALLOC(data, alloc_data + 1024);
 					    // Expanded buffer
 
 	    if (!tdata)
@@ -2529,7 +2529,7 @@ openssl_load_crl(void)
       cupsFileClose(fp);
 
       if (data)
-	free(data);
+	CUPS_LARGE_FREE(data);
     }
   }
 

@@ -86,7 +86,7 @@ cupsAddOption(const char    *name,	// I  - Name of option
   if (diff)
   {
     // No matching option name...
-    if ((temp = (cups_option_t *)realloc(num_options ? *options : NULL, sizeof(cups_option_t) * (num_options + 1))) == NULL)
+    if ((temp = (cups_option_t *)CUPS_LARGE_REALLOC(num_options ? *options : NULL, sizeof(cups_option_t) * (num_options + 1))) == NULL)
       return (0);
 
     *options = temp;
@@ -132,7 +132,7 @@ cupsFreeOptions(
     _cupsStrFree(options[i].value);
   }
 
-  free(options);
+  CUPS_LARGE_FREE(options);
 }
 
 
@@ -231,7 +231,7 @@ cupsParseOptions(
     return (0);
 
   // Make a copy of the argument string and then divide it up...
-  if ((copyarg = strdup(arg)) == NULL)
+  if ((copyarg = CUPS_LARGE_STRDUP(arg)) == NULL)
   {
     DEBUG_puts("1cupsParseOptions: Unable to copy arg string");
     return (num_options);
@@ -370,7 +370,7 @@ cupsParseOptions(
     *end = arg + (ptr - copyarg);
 
   // Free the copy of the argument we made and return the number of options found.
-  free(copyarg);
+  CUPS_LARGE_FREE(copyarg);
 
   return (num_options);
 }

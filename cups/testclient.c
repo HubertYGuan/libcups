@@ -15,6 +15,7 @@
 #include <cups/raster.h>
 #include <cups/string-private.h>
 #include <cups/thread.h>
+#include "cups-private.h"
 
 
 //
@@ -467,7 +468,7 @@ make_raster_file(ipp_t      *response,  // I - Printer attributes
   yend = header.cupsHeight - yoff;
 
   // Prepare the raster file...
-  if ((line = malloc(header.cupsBytesPerLine)) == NULL)
+  if ((line = CUPS_LARGE_MALLOC(header.cupsBytesPerLine)) == NULL)
   {
     printf("Unable to allocate %u bytes for raster output: %s\n", header.cupsBytesPerLine, strerror(errno));
     return (NULL);
@@ -476,7 +477,7 @@ make_raster_file(ipp_t      *response,  // I - Printer attributes
   if ((fd = cupsCreateTempFd(NULL, ".pwg", tempname, tempsize)) < 0)
   {
     printf("Unable to create temporary print file: %s\n", strerror(errno));
-    free(line);
+    CUPS_LARGE_FREE(line);
     return (NULL);
   }
 
@@ -484,7 +485,7 @@ make_raster_file(ipp_t      *response,  // I - Printer attributes
   {
     printf("Unable to open raster stream: %s\n", cupsRasterGetErrorString());
     close(fd);
-    free(line);
+    CUPS_LARGE_FREE(line);
     return (NULL);
   }
 
@@ -556,7 +557,7 @@ make_raster_file(ipp_t      *response,  // I - Printer attributes
   for (; y < header.cupsHeight; y ++)
     cupsRasterWritePixels(ras, line, header.cupsBytesPerLine);
 
-  free(line);
+  CUPS_LARGE_FREE(line);
 
   cupsRasterClose(ras);
 

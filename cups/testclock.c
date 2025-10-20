@@ -11,6 +11,7 @@
 #include "test-internal.h"
 #include <zephyr/kernel.h>
 #include <math.h>
+#include "cups-private.h"
 
 #define sleep(x) k_msleep(x * 1000u)
 

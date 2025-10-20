@@ -59,9 +59,9 @@ _cupsRasterAddError(const char *f,	// I - Printf-style error message
     size = (size_t)(buf->end - buf->start + 2 * bytes + 1024);
 
     if (buf->start)
-      temp = realloc(buf->start, size);
+      temp = CUPS_LARGE_REALLOC(buf->start, size);
     else
-      temp = malloc(size);
+      temp = CUPS_LARGE_MALLOC(size);
 
     if (!temp)
       return;

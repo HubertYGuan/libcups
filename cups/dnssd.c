@@ -387,7 +387,7 @@ cupsDNSSDBrowseNew(
     return (NULL);
 
   // Allocate memory for the browser...
-  if ((browse = (cups_dnssd_browse_t *)calloc(1, sizeof(cups_dnssd_browse_t))) == NULL)
+  if ((browse = (cups_dnssd_browse_t *)CUPS_LARGE_CALLOC(1, sizeof(cups_dnssd_browse_t))) == NULL)
     return (NULL);
 
   browse->dnssd   = dnssd;
@@ -403,7 +403,7 @@ cupsDNSSDBrowseNew(
     if ((dnssd->browses = cupsArrayNew(NULL, NULL, NULL, 0, NULL, (cups_afree_cb_t)delete_browse)) == NULL)
     {
       // Unable to create...
-      free(browse);
+      CUPS_LARGE_FREE(browse);
       browse = NULL;
       goto done;
     }
@@ -416,7 +416,7 @@ cupsDNSSDBrowseNew(
   if ((error = DNSServiceBrowse(&browse->ref, kDNSServiceFlagsShareConnection, if_index, types, domain, (DNSServiceBrowseReply)mdns_browse_cb, browse)) != kDNSServiceErr_NoError)
   {
     report_error(dnssd, "Unable to create DNS-SD browse request: %s", mdns_strerror(error));
-    free(browse);
+    CUPS_LARGE_FREE(browse);
     browse = NULL;
     goto done;
   }
@@ -434,7 +434,7 @@ cupsDNSSDBrowseNew(
   if ((tarray = cupsArrayNewStrings(types, ',')) == NULL)
   {
     report_error(dnssd, "Unable to create types array: %s", strerror(errno));
-    free(browse);
+    CUPS_LARGE_FREE(browse);
     browse = NULL;
     goto done;
   }
@@ -470,7 +470,7 @@ cupsDNSSDBrowseNew(
         i --;
         DnsServiceBrowseCancel(&browse->browsers[i].cancel);
       }
-      free(browse);
+      CUPS_LARGE_FREE(browse);
       browse = NULL;
       cupsArrayDelete(tarray);
       goto done;
@@ -491,7 +491,7 @@ cupsDNSSDBrowseNew(
   if ((tarray = cupsArrayNewStrings(types, ',')) == NULL)
   {
     report_error(dnssd, "Unable to create types array: %s", strerror(errno));
-    free(browse);
+    CUPS_LARGE_FREE(browse);
     browse = NULL;
     goto done;
   }
@@ -529,7 +529,7 @@ cupsDNSSDBrowseNew(
         browse->num_browsers --;
         avahi_service_browser_free(browse->browsers[browse->num_browsers]);
       }
-      free(browse);
+      CUPS_LARGE_FREE(browse);
       browse = NULL;
 
       cupsArrayDelete(tarray);
@@ -796,7 +796,7 @@ cupsDNSSDDelete(cups_dnssd_t *dnssd)	// I - DNS-SD context
 #endif // HAVE_MDNSRESPONDER
 
   cupsRWDestroy(&dnssd->rwlock);
-  free(dnssd);
+  CUPS_LARGE_FREE(dnssd);
 }
 
 
@@ -835,7 +835,7 @@ cupsDNSSDGetConfigChanges(
 //
 // This function creates a new DNS-SD context for browsing, querying, resolving,
 // and/or registering services.  Call @link cupsDNSSDDelete@ to stop any pending
-// browses, queries, or resolves, unregister any services, and free the DNS-SD
+// browses, queries, or resolves, unregister any services, and CUPS_LARGE_FREE the DNS-SD
 // context.
 //
 
@@ -850,7 +850,7 @@ cupsDNSSDNew(
   DEBUG_printf("cupsDNSSDNew(error_cb=%p, cb_data=%p)", (void *)error_cb, cb_data);
 
   // Allocate memory...
-  if ((dnssd = (cups_dnssd_t *)calloc(1, sizeof(cups_dnssd_t))) == NULL)
+  if ((dnssd = (cups_dnssd_t *)CUPS_LARGE_CALLOC(1, sizeof(cups_dnssd_t))) == NULL)
   {
     DEBUG_puts("2cupsDNSSDNew: Unable to allocate memory, returning NULL.");
     return (NULL);
@@ -1014,7 +1014,7 @@ cupsDNSSDQueryNew(
     return (NULL);
 
   // Allocate memory for the resolver...
-  if ((query = (cups_dnssd_query_t *)calloc(1, sizeof(cups_dnssd_query_t))) == NULL)
+  if ((query = (cups_dnssd_query_t *)CUPS_LARGE_CALLOC(1, sizeof(cups_dnssd_query_t))) == NULL)
     return (NULL);
 
   query->dnssd   = dnssd;
@@ -1031,7 +1031,7 @@ cupsDNSSDQueryNew(
     if ((dnssd->queries = cupsArrayNew(NULL, NULL, NULL, 0, NULL, (cups_afree_cb_t)delete_query)) == NULL)
     {
       // Unable to create...
-      free(query);
+      CUPS_LARGE_FREE(query);
       query = NULL;
       goto done;
     }
@@ -1044,7 +1044,7 @@ cupsDNSSDQueryNew(
   if ((error = DNSServiceQueryRecord(&query->ref, kDNSServiceFlagsShareConnection, if_index, fullname, rrtype, kDNSServiceClass_IN, (DNSServiceQueryRecordReply)mdns_query_cb, query)) != kDNSServiceErr_NoError)
   {
     report_error(dnssd, "Unable to create DNS-SD query request: %s", mdns_strerror(error));
-    free(query);
+    CUPS_LARGE_FREE(query);
     query = NULL;
     goto done;
   }
@@ -1064,7 +1064,7 @@ cupsDNSSDQueryNew(
   if ((status = DnsStartMulticastQuery(&query->req, &query->handle)) != ERROR_SUCCESS)
   {
     report_error(dnssd, "Unable to start mDNS query request: %d", status);
-    free(query);
+    CUPS_LARGE_FREE(query);
     query = NULL;
     goto done;
   }
@@ -1089,7 +1089,7 @@ cupsDNSSDQueryNew(
   if (!query->browser)
   {
     report_error(dnssd, "Unable to create DNS-SD query request: %s", avahi_strerror(avahi_client_errno(dnssd->client)));
-    free(query);
+    CUPS_LARGE_FREE(query);
     query = NULL;
     goto done;
   }
@@ -1109,7 +1109,7 @@ cupsDNSSDQueryNew(
 
 
 //
-// 'cupsDNSSDResolveDelete()' - Cancel and free a resolve request.
+// 'cupsDNSSDResolveDelete()' - Cancel and CUPS_LARGE_FREE a resolve request.
 //
 
 void
@@ -1193,7 +1193,7 @@ cupsDNSSDResolveNew(
   }
 
   // Allocate memory for the resolver...
-  if ((resolve = (cups_dnssd_resolve_t *)calloc(1, sizeof(cups_dnssd_resolve_t))) == NULL)
+  if ((resolve = (cups_dnssd_resolve_t *)CUPS_LARGE_CALLOC(1, sizeof(cups_dnssd_resolve_t))) == NULL)
   {
     DEBUG_printf("2cupsDNSSDResolveNew: Unable to allocate memory: %s", strerror(errno));
     return (NULL);
@@ -1210,7 +1210,7 @@ cupsDNSSDResolveNew(
   if ((error = DNSServiceResolve(&resolve->ref, kDNSServiceFlagsShareConnection, if_index, name, type, domain, (DNSServiceResolveReply)mdns_resolve_cb, resolve)) != kDNSServiceErr_NoError)
   {
     report_error(dnssd, "Unable to create DNS-SD resolve request: %s", mdns_strerror(error));
-    free(resolve);
+    CUPS_LARGE_FREE(resolve);
     return (NULL);
   }
 
@@ -1231,7 +1231,7 @@ cupsDNSSDResolveNew(
   if ((status = DnsServiceResolve(&resolve->req, &resolve->cancel)) != DNS_REQUEST_PENDING)
   {
     report_error(dnssd, "Unable to create DNS-SD resolve request: %d", status);
-    free(resolve);
+    CUPS_LARGE_FREE(resolve);
     return (NULL);
   }
 
@@ -1255,7 +1255,7 @@ cupsDNSSDResolveNew(
   if (!resolve->resolver)
   {
     report_error(dnssd, "Unable to create DNS-SD resolve request: %s", avahi_strerror(avahi_client_errno(dnssd->client)));
-    free(resolve);
+    CUPS_LARGE_FREE(resolve);
     return (NULL);
   }
 #endif // HAVE_MDNSRESPONDER
@@ -1271,7 +1271,7 @@ cupsDNSSDResolveNew(
     {
       // Unable to create...
       DEBUG_printf("2cupsDNSSDResolveNew: Unable to allocate memory: %s", strerror(errno));
-      free(resolve);
+      CUPS_LARGE_FREE(resolve);
       resolve = NULL;
 
       goto done;
@@ -1464,7 +1464,7 @@ cupsDNSSDServiceAdd(
       ret = false;
       goto done;
     }
-    txt_str = malloc(len);
+    txt_str = CUPS_LARGE_MALLOC(len);
     if (!txt_str)
     {
       report_error(service->dnssd, "Unable to create DNS-SD service registration: Unable to allocate memory.");
@@ -1480,20 +1480,20 @@ cupsDNSSDServiceAdd(
       {
         report_error(service->dnssd, "Unable to create DNS-SD service registration: TXT pair too long.");
         ret = false;
-        free(old_txt);
+        CUPS_LARGE_FREE(old_txt);
         goto done;
       }
       len += size;
-      txt_str = malloc(len);
+      txt_str = CUPS_LARGE_MALLOC(len);
       if (!txt_str)
       {
         report_error(service->dnssd, "Unable to create DNS-SD service registration: Unable to allocate memory.");
         ret = false;
-        free(old_txt);
+        CUPS_LARGE_FREE(old_txt);
         goto done;
       }
       snprintf(txt_str, len, "%s%c%s=%s", old_txt, size, txt[0].name, txt[0].value);
-      free(old_txt);
+      CUPS_LARGE_FREE(old_txt);
     }
   }
 
@@ -1594,7 +1594,7 @@ cupsDNSSDServiceAdd(
 
     if (length > 0)
     {
-      srv->txt = calloc(length, sizeof(WCHAR));
+      srv->txt = CUPS_LARGE_CALLOC(length, sizeof(WCHAR));
 
       for (j = 0, ptr = srv->txt, end = srv->txt + length; j < num_txt; j ++)
       {
@@ -1653,7 +1653,7 @@ cupsDNSSDServiceAdd(
     txtrec = avahi_string_list_add_printf(txtrec, "%s=%s", txt[i].name, txt[i].value);
 
   // Copy the registration type...
-  if ((regtype = strdup(types)) == NULL)
+  if ((regtype = CUPS_LARGE_STRDUP(types)) == NULL)
   {
     report_error(service->dnssd, "Unable to duplicate registration types: %s", strerror(errno));
     ret = false;
@@ -1694,7 +1694,7 @@ cupsDNSSDServiceAdd(
     }
   }
 
-  free(regtype);
+  CUPS_LARGE_FREE(regtype);
 
   if (txtrec)
     avahi_string_list_free(txtrec);
@@ -1708,7 +1708,7 @@ cupsDNSSDServiceAdd(
 
 
 //
-// 'cupsDNSSDServiceDelete()' - Cancel and free a service registration.
+// 'cupsDNSSDServiceDelete()' - Cancel and CUPS_LARGE_FREE a service registration.
 //
 
 void
@@ -1789,13 +1789,13 @@ cupsDNSSDServiceNew(
     return (NULL);
 
   // Allocate memory for the service...
-  if ((service = (cups_dnssd_service_t *)calloc(1, sizeof(cups_dnssd_service_t))) == NULL)
+  if ((service = (cups_dnssd_service_t *)CUPS_LARGE_CALLOC(1, sizeof(cups_dnssd_service_t))) == NULL)
     return (NULL);
 
   service->dnssd    = dnssd;
   service->cb       = cb;
   service->cb_data  = cb_data;
-  service->name     = strdup(name);
+  service->name     = CUPS_LARGE_STRDUP(name);
   service->if_index = if_index;
 
 #ifdef HAVE_MDNSRESPONDER
@@ -1806,8 +1806,8 @@ cupsDNSSDServiceNew(
   if (!service->group)
   {
     report_error(dnssd, "Unable to create DNS-SD service registration: %s", avahi_strerror(avahi_client_errno(dnssd->client)));
-    free(service->name);
-    free(service);
+    CUPS_LARGE_FREE(service->name);
+    CUPS_LARGE_FREE(service);
     service = NULL;
     return (NULL);
   }
@@ -1824,8 +1824,8 @@ cupsDNSSDServiceNew(
     if ((dnssd->services = cupsArrayNew(NULL, NULL, NULL, 0, NULL, (cups_afree_cb_t)delete_service)) == NULL)
     {
       // Unable to create...
-      free(service->name);
-      free(service);
+      CUPS_LARGE_FREE(service->name);
+      CUPS_LARGE_FREE(service);
       service = NULL;
       goto done;
     }
@@ -2007,7 +2007,7 @@ delete_browse(
     avahi_service_browser_free(browse->browsers[i]);
 #endif // HAVE_MDNSRESPONDER
 
-  free(browse);
+  CUPS_LARGE_FREE(browse);
 }
 
 
@@ -2061,7 +2061,7 @@ static void
 delete_service(
     cups_dnssd_service_t *service)	// I - Service
 {
-  free(service->name);
+  CUPS_LARGE_FREE(service->name);
 
 #ifdef HAVE_MDNSRESPONDER
   size_t	i;			// Looping var
@@ -2081,14 +2081,14 @@ delete_service(
   {
     DnsServiceRegisterCancel(&service->srvs[i].cancel);
     DnsServiceFreeInstance(service->srvs[i].req.pServiceInstance);
-    free(service->srvs[i].txt);
+    CUPS_LARGE_FREE(service->srvs[i].txt);
   }
 
 #else // HAVE_AVAHI
   avahi_entry_group_free(service->group);
 #endif // HAVE_MDNSRESPONDER
 
-  free(service);
+  CUPS_LARGE_FREE(service);
 }
 
 
@@ -3101,7 +3101,7 @@ avahi_resolve_cb(
   cupsDNSSDAssembleFullName(fullname, sizeof(fullname), name, type, domain);
   DEBUG_printf("4avahi_resolve_cb: fullname=\"%s\"", fullname);
 
-  // Do the resolve callback and free the TXT record stuff...
+  // Do the resolve callback and CUPS_LARGE_FREE the TXT record stuff...
   (resolve->cb)(resolve, resolve->cb_data, event == AVAHI_RESOLVER_FAILURE ? CUPS_DNSSD_FLAGS_ERROR : CUPS_DNSSD_FLAGS_NONE, (uint32_t)if_index, fullname, host, port, num_txt, txt);
 
   cupsFreeOptions(num_txt, txt);

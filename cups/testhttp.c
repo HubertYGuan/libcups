@@ -645,8 +645,8 @@ testhttp_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
  	  printf("SaveCredentials (NULL): %s\n", cupsSaveCredentials(NULL, hostname, /*creds*/NULL, /*key*/NULL) ? "true" : "false");
 	}
 
-        free(creds);
-        free(lcreds);
+        CUPS_LARGE_FREE(creds);
+        CUPS_LARGE_FREE(lcreds);
       }
       else
       {

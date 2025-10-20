@@ -13,6 +13,7 @@
 #include "string-private.h"
 #include "ipp-private.h"
 #include "test-internal.h"
+#include "cups-private.h"
 #ifdef _WIN32
 #  include <io.h>
 #else

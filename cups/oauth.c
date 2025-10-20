@@ -196,7 +196,7 @@ cupsOAuthClearTokens(
 // This function makes a copy of a cached access token and any
 // associated expiration time for the given Authorization Server "auth_uri" and
 // Resource "resource_uri" combination.  The returned access token must be freed
-// using the `free` function.
+// using the `CUPS_LARGE_FREE` function.
 //
 // `NULL` is returned if no token is cached.
 //
@@ -235,7 +235,7 @@ cupsOAuthCopyAccessToken(
 //
 // This function makes a copy of the cached `client_id` value for a given
 // Authorization Server "auth_uri" and Redirection URI "resource_uri". The
-// returned value must be freed using the `free` function.
+// returned value must be freed using the `CUPS_LARGE_FREE` function.
 //
 // `NULL` is returned if no `client_id` is cached.
 //
@@ -251,7 +251,7 @@ cupsOAuthCopyClientId(
   if ((client_id = oauth_load_value(auth_uri, redirect_uri, _CUPS_OTYPE_CLIENT_ID, /*try_sysconfig*/true)) == NULL && !strncmp(auth_uri, _CUPS_CONNECTOR_OAUTH_URI, _CUPS_CONNECTOR_OAUTH_URILEN))
   {
     // Use the default CUPS Universal Print connector client ID with MS Entrada ID...
-    client_id = strdup(_CUPS_CONNECTOR_CLIENT_ID);
+    client_id = CUPS_LARGE_STRDUP(_CUPS_CONNECTOR_CLIENT_ID);
   }
 
   return (client_id);
@@ -263,7 +263,7 @@ cupsOAuthCopyClientId(
 //
 // This function makes a copy of a cached refresh token for the given
 // given Authorization Server "auth_uri" and Resource "resource_uri"
-// combination.  The returned refresh token must be freed using the `free`
+// combination.  The returned refresh token must be freed using the `CUPS_LARGE_FREE`
 // function.
 //
 // `NULL` is returned if no refresh token is cached.
@@ -301,7 +301,7 @@ cupsOAuthCopyUserId(
   value = oauth_load_value(auth_uri, resource_uri, _CUPS_OTYPE_USER_ID, /*try_sysconfig*/false);
   jwt   = cupsJWTImportString(value, CUPS_JWS_FORMAT_COMPACT);
 
-  free(value);
+  CUPS_LARGE_FREE(value);
   return (jwt);
 }
 
@@ -333,7 +333,7 @@ cupsOAuthCopyUserId(
 // port, and path to use.  If `NULL`, 127.0.0.1 on a random port is used with a
 // path of "/".
 //
-// The returned authorization code must be freed using the `free` function.
+// The returned authorization code must be freed using the `CUPS_LARGE_FREE` function.
 //
 
 char *					// O - Authorization code or `NULL` on error
@@ -600,7 +600,7 @@ cupsOAuthGetAuthorizationCode(
                   {
                     // Got a code and the correct state value, copy the code and
                     // save out code_verifier and nonce values...
-                    auth_code = strdup(code_value);
+                    auth_code = CUPS_LARGE_STRDUP(code_value);
 		    hbody     = "<!DOCTYPE html>\n"
 				"<html>\n"
 				"  <head><title>Authorization Complete</title></head>\n"
@@ -681,12 +681,12 @@ cupsOAuthGetAuthorizationCode(
   if (fd >= 0)
     httpAddrClose(&addr, fd);
 
-  free(client_id);
-  free(code_verifier);
-  free(nonce);
-  free(scopes_supported);
-  free(state);
-  free(url);
+  CUPS_LARGE_FREE(client_id);
+  CUPS_LARGE_FREE(code_verifier);
+  CUPS_LARGE_FREE(nonce);
+  CUPS_LARGE_FREE(scopes_supported);
+  CUPS_LARGE_FREE(state);
+  CUPS_LARGE_FREE(url);
 
   DEBUG_printf("1cupsOAuthGetAuthCode: Returning \"%s\".", auth_code);
 
@@ -712,7 +712,7 @@ cupsOAuthGetAuthorizationCode(
 // application, while the "tos_uri" specifies a public URL for the terms of
 // service for your application.
 //
-// The returned "client_id" string must be freed using the `free` function.
+// The returned "client_id" string must be freed using the `CUPS_LARGE_FREE` function.
 //
 // *Note*: This function should only be used to register WWW applications. The
 // @link cupsOAuthGetAuthorizationCode@ function handles registration of
@@ -765,7 +765,7 @@ cupsOAuthGetClientId(
 
   if ((value = cupsJSONGetString(cupsJSONFind(response, "client_id"))) != NULL)
   {
-    if ((client_id = strdup(value)) != NULL)
+    if ((client_id = CUPS_LARGE_STRDUP(value)) != NULL)
     {
       // Save client_id and optional client_secret...
       oauth_save_value(auth_uri, redirect_uri, _CUPS_OTYPE_CLIENT_ID, value);
@@ -778,7 +778,7 @@ cupsOAuthGetClientId(
   // Return whatever we got...
   done:
 
-  free(req_data);
+  CUPS_LARGE_FREE(req_data);
 
   return (client_id);
 }
@@ -919,7 +919,7 @@ cupsOAuthGetDeviceGrant(
           if ((complete_url = cupsFormEncode(verification_url, num_form, form)) != NULL)
           {
             cupsJSONNewString(grant, cupsJSONNewKey(grant, /*after*/NULL, CUPS_ODEVGRANT_VERIFICATION_URI_COMPLETE), complete_url);
-            free(complete_url);
+            CUPS_LARGE_FREE(complete_url);
           }
         }
       }
@@ -929,9 +929,9 @@ cupsOAuthGetDeviceGrant(
   // Free allocated stuff and return the device authorization grant, if any...
   cupsFreeOptions(num_form, form);
 
-  free(client_id);
-  free(request);
-  free(scopes_supported);
+  CUPS_LARGE_FREE(client_id);
+  CUPS_LARGE_FREE(request);
+  CUPS_LARGE_FREE(scopes_supported);
 
   return (grant);
 }
@@ -993,7 +993,7 @@ cupsOAuthGetJWKS(const char  *auth_uri,	// I - Authorization server URI
 					// JSON string
 
     oauth_save_value(auth_uri, /*secondary_uri*/NULL, _CUPS_OTYPE_JWKS, s);
-    free(s);
+    CUPS_LARGE_FREE(s);
   }
 
   // Return what we got...
@@ -1195,7 +1195,7 @@ cupsOAuthGetMetadata(
 // the @link cupsOAuthGetAuthorizationCode@ function.
 //
 // When successful, the access token and expiration time are returned. The
-// access token must be freed using the `free` function. The new refresh token
+// access token must be freed using the `CUPS_LARGE_FREE` function. The new refresh token
 // and any user ID information can be obtained using the
 // @link cupsOAuthCopyRefreshToken@ and @link cupsOAuthCopyUserId@ functions
 // respectively.
@@ -1263,7 +1263,7 @@ cupsOAuthGetTokens(
     {
       DEBUG_printf("1cupsOAuthGetTokens: redirect_uri=\"%s\"", value);
       num_form = cupsAddOption("redirect_uri", value, num_form, &form);
-      free(value);
+      CUPS_LARGE_FREE(value);
     }
     else
     {
@@ -1275,21 +1275,21 @@ cupsOAuthGetTokens(
   {
     DEBUG_printf("1cupsOAuthGetTokens: client_id=\"%s\"", value);
     num_form = cupsAddOption("client_id", value, num_form, &form);
-    free(value);
+    CUPS_LARGE_FREE(value);
   }
 
   if ((value = oauth_load_value(auth_uri, redirect_uri, _CUPS_OTYPE_CLIENT_SECRET, /*try_sysconfig*/true)) != NULL)
   {
     DEBUG_printf("1cupsOAuthGetTokens: client_secret=\"%s\"", value);
     num_form = cupsAddOption("client_secret", value, num_form, &form);
-    free(value);
+    CUPS_LARGE_FREE(value);
   }
 
   if (grant_type != CUPS_OGRANT_DEVICE_CODE && (value = oauth_load_value(auth_uri, resource_uri, _CUPS_OTYPE_CODE_VERIFIER, /*try_sysconfig*/false)) != NULL)
   {
     DEBUG_printf("1cupsOAuthGetTokens: code_verifier=\"%s\"", value);
     num_form = cupsAddOption("code_verifier", value, num_form, &form);
-    free(value);
+    CUPS_LARGE_FREE(value);
   }
 
   request = cupsFormEncode(/*url*/NULL, num_form, form);
@@ -1318,7 +1318,7 @@ cupsOAuthGetTokens(
 
     // Free memory and return...
     cupsJSONDelete(response);
-    free(request);
+    CUPS_LARGE_FREE(request);
 
     return (NULL);
   }
@@ -1374,7 +1374,7 @@ cupsOAuthGetTokens(
   cupsOAuthSaveTokens(auth_uri, resource_uri, access_value, access_expvalue, id_value, refresh_value);
 
   if (access_value)
-    access_token = strdup(access_value);
+    access_token = CUPS_LARGE_STRDUP(access_value);
 
   if (access_expires)
     *access_expires = access_expvalue;
@@ -1388,8 +1388,8 @@ cupsOAuthGetTokens(
 
   cupsJSONDelete(response);
   cupsJWTDelete(jwt);
-  free(nonce);
-  free(request);
+  CUPS_LARGE_FREE(nonce);
+  CUPS_LARGE_FREE(request);
 
   return (access_token);
 }
@@ -1481,7 +1481,7 @@ cupsOAuthGetUserId(
     else if ((user_id = cupsJWTNew(/*type*/NULL, user_id_claims)) != NULL)
     {
       // Created a new JWT with the JSON user information, save it for future use...
-      free(user_id_value);
+      CUPS_LARGE_FREE(user_id_value);
 
       user_id_value = cupsJWTExportString(user_id, CUPS_JWS_FORMAT_COMPACT);
       oauth_save_value(auth_uri, access_uri, _CUPS_OTYPE_USER_ID, user_id_value);
@@ -1501,8 +1501,8 @@ cupsOAuthGetUserId(
   done:
 
   // Free strings and return...
-  free(access_uri);
-  free(user_id_value);
+  CUPS_LARGE_FREE(access_uri);
+  CUPS_LARGE_FREE(user_id_value);
 
   return (user_id);
 }
@@ -1614,7 +1614,7 @@ cupsOAuthMakeAuthorizationURL(
   else if ((scopes_supported = oauth_copy_scopes(metadata)) != NULL)
   {
     num_vars = cupsAddOption("scope", scopes_supported, num_vars, &vars);
-    free(scopes_supported);
+    CUPS_LARGE_FREE(scopes_supported);
   }
 
   if (state)
@@ -1633,7 +1633,7 @@ cupsOAuthMakeAuthorizationURL(
 //
 // This function creates a string containing random data that has been Base64URL
 // encoded. "len" specifies the number of random bytes to include in the string.
-// The returned string must be freed using the `free` function.
+// The returned string must be freed using the `CUPS_LARGE_FREE` function.
 //
 
 char *					// O - Random string
@@ -1659,7 +1659,7 @@ cupsOAuthMakeBase64Random(size_t len)	// I - Number of bytes
   httpEncode64(base64url, sizeof(base64url), bytes, len, /*url*/true);
 
   // Copy and return the random string...
-  return (strdup(base64url));
+  return (CUPS_LARGE_STRDUP(base64url));
 }
 
 
@@ -1719,7 +1719,7 @@ cupsOAuthSaveTokens(
     if ((access_uri = oauth_make_access_uri(access_token)) != NULL)
     {
       oauth_save_value(auth_uri, access_uri, _CUPS_OTYPE_USER_ID, user_id);
-      free(access_uri);
+      CUPS_LARGE_FREE(access_uri);
     }
   }
   else
@@ -1761,7 +1761,7 @@ oauth_copy_response(http_t *http)	// I - HTTP connection
   else
     bodylen = (size_t)bytes;
 
-  if ((body = calloc(1, bodylen + 1)) != NULL)
+  if ((body = CUPS_LARGE_CALLOC(1, bodylen + 1)) != NULL)
   {
     for (ptr = body, end = body + bodylen; ptr < end; ptr += bytes)
     {
@@ -1780,7 +1780,7 @@ oauth_copy_response(http_t *http)	// I - HTTP connection
 //
 // 'oauth_copy_scopes()' - Copy all supported scopes from the metadata.
 //
-// Caller must free returned string...
+// Caller must CUPS_LARGE_FREE returned string...
 //
 
 static char *				// O - Scopes
@@ -1815,7 +1815,7 @@ oauth_copy_scopes(
       }
     }
 
-    if (length > 0 && (scopes = malloc(length)) != NULL)
+    if (length > 0 && (scopes = CUPS_LARGE_MALLOC(length)) != NULL)
     {
       // Copy the scopes to a string with spaces between them...
       char	*ptr;			// Pointer into value
@@ -1900,7 +1900,7 @@ oauth_do_post(const char *ep,		// I - Endpoint URI
   response  = oauth_copy_response(http);
   resp_json = cupsJSONImportString(response);
 
-  free(response);
+  CUPS_LARGE_FREE(response);
 
   // Check for errors...
   resp_error = oauth_set_error(resp_json, /*num_form*/0, /*form*/NULL);
@@ -1962,7 +1962,7 @@ oauth_load_value(
   if (fd >= 0)
   {
     // Opened, read up to 64k of data...
-    if (!fstat(fd, &fileinfo) && fileinfo.st_size <= 65536 && (value = calloc(1, (size_t)fileinfo.st_size + 1)) != NULL)
+    if (!fstat(fd, &fileinfo) && fileinfo.st_size <= 65536 && (value = CUPS_LARGE_CALLOC(1, (size_t)fileinfo.st_size + 1)) != NULL)
       read(fd, value, (size_t)fileinfo.st_size);
     else
       _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), false);
@@ -1984,7 +1984,7 @@ oauth_load_value(
 //
 // 'oauth_make_access_uri()' - Make an access token URI.
 //
-// Note: You must free the returned pointer.
+// Note: You must CUPS_LARGE_FREE the returned pointer.
 //
 
 static char *				// O - Access token URI
@@ -1996,7 +1996,7 @@ oauth_make_access_uri(
 
 
   access_uri_size = strlen(access_token) + 11;
-  if ((access_uri = malloc(access_uri_size)) != NULL)
+  if ((access_uri = CUPS_LARGE_MALLOC(access_uri_size)) != NULL)
     snprintf(access_uri, access_uri_size, "urn:token:%s", access_token);
 
   return (access_uri);

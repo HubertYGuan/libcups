@@ -190,7 +190,7 @@ cupsAddDest(const char  *name,		// I  - Destination name
     if (instance && parent && parent->num_options > 0)
     {
       // Copy options from parent...
-      dest->options = calloc(sizeof(cups_option_t), (size_t)parent->num_options);
+      dest->options = CUPS_LARGE_CALLOC(sizeof(cups_option_t), (size_t)parent->num_options);
 
       if (dest->options)
       {
@@ -622,7 +622,7 @@ cupsCopyDest(cups_dest_t *dest,		// I  - Destination to copy
     if (new_dest == dest)
       return (num_dests);
 
-    // Otherwise, free the options...
+    // Otherwise, CUPS_LARGE_FREE the options...
     cupsFreeOptions(new_dest->num_options, new_dest->options);
 
     new_dest->num_options = 0;
@@ -637,7 +637,7 @@ cupsCopyDest(cups_dest_t *dest,		// I  - Destination to copy
   {
     new_dest->is_default = dest->is_default;
 
-    if ((new_dest->options = calloc(sizeof(cups_option_t), (size_t)dest->num_options)) == NULL)
+    if ((new_dest->options = CUPS_LARGE_CALLOC(sizeof(cups_option_t), (size_t)dest->num_options)) == NULL)
       return (cupsRemoveDest(dest->name, dest->instance, num_dests, dests));
 
     new_dest->num_options = dest->num_options;
@@ -787,7 +787,7 @@ cupsFreeDests(size_t      num_dests,	// I - Number of destinations
     cupsFreeOptions(dest->num_options, dest->options);
   }
 
-  free(dests);
+  CUPS_LARGE_FREE(dests);
 }
 
 
@@ -1024,7 +1024,7 @@ cupsGetDestWithURI(const char *name,	// I - Desired printer name or `NULL`
   }
 
   // Create the destination...
-  if ((dest = calloc(1, sizeof(cups_dest_t))) == NULL)
+  if ((dest = CUPS_LARGE_CALLOC(1, sizeof(cups_dest_t))) == NULL)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     return (NULL);
@@ -1316,7 +1316,7 @@ _cupsGetDests(http_t       *http,	// I  - Connection to server or `CUPS_HTTP_DEF
 // be used.  The "printer-uri-supported" option will be present for those IPP
 // printers that have been recently used.
 //
-// Use the @link cupsFreeDests@ function to free the destination list and
+// Use the @link cupsFreeDests@ function to CUPS_LARGE_FREE the destination list and
 // the @link cupsGetDest@ function to find a particular destination.
 //
 //
@@ -2010,9 +2010,9 @@ cups_add_dest(const char  *name,	// I  - Name of destination
 
   // Add new destination...
   if (*num_dests == 0)
-    dest = malloc(sizeof(cups_dest_t));
+    dest = CUPS_LARGE_MALLOC(sizeof(cups_dest_t));
   else
-    dest = realloc(*dests, sizeof(cups_dest_t) * (size_t)(*num_dests + 1));
+    dest = CUPS_LARGE_REALLOC(*dests, sizeof(cups_dest_t) * (size_t)(*num_dests + 1));
 
   if (!dest)
     return (NULL);
@@ -2128,7 +2128,7 @@ cups_dnssd_free_device(
 
   cupsFreeOptions(device->dest.num_options, device->dest.options);
 
-  free(device);
+  CUPS_LARGE_FREE(device);
 }
 
 
@@ -2200,7 +2200,7 @@ cups_dnssd_get_device(
     // No, add the device...
     DEBUG_printf("6cups_dnssd_get_device: Adding '%s' for %s with domain '%s'.", serviceName, !strcmp(regtype, "_ipps._tcp") ? "IPPS" : "IPP", replyDomain);
 
-    if ((device = calloc(sizeof(_cups_dnssd_device_t), 1)) == NULL)
+    if ((device = CUPS_LARGE_CALLOC(sizeof(_cups_dnssd_device_t), 1)) == NULL)
       return (NULL);
 
     device->dest.name = _cupsStrAlloc(name);

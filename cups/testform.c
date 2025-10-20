@@ -9,6 +9,7 @@
 
 #include "form.h"
 #include "test-internal.h"
+#include "cups-private.h"
 
 
 //
@@ -210,7 +211,7 @@ testform_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
                 if (data)
                 {
                   puts(data);
-		  free(data);
+		  CUPS_LARGE_FREE(data);
 		}
 		else
 		{
@@ -315,7 +316,7 @@ do_test(_form_data_t *test)		// I - Test data
   else
     testEnd(true);
 
-  free(data);
+  CUPS_LARGE_FREE(data);
   cupsFreeOptions(num_vars, vars);
 }
 

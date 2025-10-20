@@ -325,14 +325,14 @@ http_check_roots(const char *creds)	// I - Credentials
 
 
   // Convert PEM-encoded credentials to an array of DER-encoded certificates...
-  if ((tcreds = strdup(creds)) == NULL)
+  if ((tcreds = CUPS_LARGE_STRDUP(creds)) == NULL)
     goto done;
 
   if ((certs = CFArrayCreateMutable(kCFAllocatorDefault, /*capacity*/0, &kCFTypeArrayCallBacks)) == NULL)
     goto done;
 
   dersize = 3 * strlen(tcreds) / 4;
-  if ((der = malloc(dersize)) == NULL)
+  if ((der = CUPS_LARGE_MALLOC(dersize)) == NULL)
     goto done;
 
   for (tstart = strstr(tcreds, "-----BEGIN CERTIFICATE-----\n"); tstart; tstart = strstr(tend, "-----BEGIN CERTIFICATE-----\n"))
@@ -381,8 +381,8 @@ http_check_roots(const char *creds)	// I - Credentials
 
   done:
 
-  free(tcreds);
-  free(der);
+  CUPS_LARGE_FREE(tcreds);
+  CUPS_LARGE_FREE(der);
 
   if (certs)
     CFRelease(certs);
@@ -460,7 +460,7 @@ http_check_roots(const char *creds)	// I - Credentials
 	  snprintf(filename, sizeof(filename), "%s/%s", root_dirs[i], dent->filename);
           if ((fd = open(filename, O_RDONLY)) >= 0)
           {
-            if ((cert = calloc(1, (size_t)(dent->fileinfo.st_size + 1))) != NULL)
+            if ((cert = CUPS_LARGE_CALLOC(1, (size_t)(dent->fileinfo.st_size + 1))) != NULL)
 	    {
 	      read(fd, cert, (size_t)dent->fileinfo.st_size);
 	      cupsArrayAdd(tls_root_certs, cert);
@@ -530,7 +530,7 @@ http_copy_file(const char *path,	// I - Directory
     return (NULL);
   }
 
-  if ((s = calloc(1, (size_t)fileinfo.st_size + 1)) == NULL)
+  if ((s = CUPS_LARGE_CALLOC(1, (size_t)fileinfo.st_size + 1)) == NULL)
   {
     close(fd);
     return (NULL);
@@ -538,7 +538,7 @@ http_copy_file(const char *path,	// I - Directory
 
   if (read(fd, s, (size_t)fileinfo.st_size) < 0)
   {
-    free(s);
+    CUPS_LARGE_FREE(s);
     s = NULL;
   }
 
@@ -636,7 +636,7 @@ http_der_to_pem(
   // column 64, and the BEGIN/END CERTIFICATE text...
   pemsize = 2 * dersize + /*"-----BEGIN CERTIFICATE-----\n"*/28 + /*"-----END CERTIFICATE-----\n"*/26 + 1;
 
-  if ((pem = calloc(1, pemsize)) == NULL)
+  if ((pem = CUPS_LARGE_CALLOC(1, pemsize)) == NULL)
     return (NULL);
 
   cupsCopyString(pem, "-----BEGIN CERTIFICATE-----\n", pemsize);

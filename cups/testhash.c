@@ -9,6 +9,7 @@
 
 #include "cups.h"
 #include "test-internal.h"
+#include "cups-private.h"
 
 
 //

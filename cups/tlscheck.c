@@ -181,7 +181,7 @@ tlscheck_main(void *p1, void *p2, void *p3)		// I - Zephyr thread parameters
   {
     if (!cupsGetCredentialsInfo(creds, creds_str, sizeof(creds_str)))
       cupsCopyString(creds_str, "Unable to convert X.509 credential to string.", sizeof(creds_str));
-    free(creds);
+    CUPS_LARGE_FREE(creds);
   }
 
   printf("%s: OK (%s)\n", server, httpGetSecurity(http, security, sizeof(security)));

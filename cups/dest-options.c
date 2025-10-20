@@ -660,7 +660,7 @@ cupsCopyDestInfo(
   }
 
   // Allocate a cups_dinfo_t structure and return it...
-  if ((dinfo = calloc(1, sizeof(cups_dinfo_t))) == NULL)
+  if ((dinfo = CUPS_LARGE_CALLOC(1, sizeof(cups_dinfo_t))) == NULL)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
     ippDelete(response);
@@ -818,7 +818,7 @@ cupsFreeDestInfo(cups_dinfo_t *dinfo)	// I - Destination information
 
   ippDelete(dinfo->attrs);
 
-  free(dinfo);
+  CUPS_LARGE_FREE(dinfo);
 }
 
 
@@ -1127,7 +1127,7 @@ cups_add_dconstres(
   if ((attr = ippFindAttribute(collection, "resolver-name", IPP_TAG_NAME)) == NULL)
     return;
 
-  if ((temp = calloc(1, sizeof(_cups_dconstres_t))) == NULL)
+  if ((temp = CUPS_LARGE_CALLOC(1, sizeof(_cups_dconstres_t))) == NULL)
     return;
 
   temp->name       = attr->values[0].string.text;
@@ -1516,7 +1516,7 @@ cups_copy_media_db(
   _cups_media_db_t *temp;		// New media entry
 
 
-  if ((temp = calloc(1, sizeof(_cups_media_db_t))) == NULL)
+  if ((temp = CUPS_LARGE_CALLOC(1, sizeof(_cups_media_db_t))) == NULL)
     return (NULL);
 
   if (mdb->color)
@@ -1636,8 +1636,8 @@ cups_create_constraints(
   _ipp_value_t		*val;		// Current value
 
 
-  dinfo->constraints = cupsArrayNew(NULL, NULL, NULL, 0, NULL, (cups_afree_cb_t)free);
-  dinfo->resolvers   = cupsArrayNew((cups_array_cb_t)cups_compare_dconstres, NULL, NULL, 0, NULL, (cups_afree_cb_t)free);
+  dinfo->constraints = cupsArrayNew(NULL, NULL, NULL, 0, NULL, (cups_afree_cb_t)CUPS_LARGE_FREE);
+  dinfo->resolvers   = cupsArrayNew((cups_array_cb_t)cups_compare_dconstres, NULL, NULL, 0, NULL, (cups_afree_cb_t)CUPS_LARGE_FREE);
 
   if ((attr = ippFindAttribute(dinfo->attrs, "job-constraints-supported",
 			       IPP_TAG_BEGIN_COLLECTION)) != NULL)
@@ -1969,7 +1969,7 @@ cups_create_media_db(
 
 static void
 cups_free_media_db(
-    _cups_media_db_t *mdb)		// I - Media entry to free
+    _cups_media_db_t *mdb)		// I - Media entry to CUPS_LARGE_FREE
 {
   if (mdb->color)
     _cupsStrFree(mdb->color);
@@ -1984,7 +1984,7 @@ cups_free_media_db(
   if (mdb->type)
     _cupsStrFree(mdb->type);
 
-  free(mdb);
+  CUPS_LARGE_FREE(mdb);
 }
 
 

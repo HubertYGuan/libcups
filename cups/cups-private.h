@@ -45,10 +45,14 @@ typedef int mode_t;			// Windows doesn't support mode_t type @private@
 #define CUPS_LARGE_MALLOC(x) shared_multi_heap_alloc(SMH_REG_ATTR_EXTERNAL, x)
 #define CUPS_LARGE_FREE shared_multi_heap_free
 extern void *CUPS_LARGE_CALLOC(size_t nelem, size_t elsize);
+extern void *CUPS_LARGE_REALLOC(void *old_ptr, size_t new_size);
+extern char *CUPS_LARGE_STRDUP(const char *str);
 #else
 #define CUPS_LARGE_MALLOC(x) malloc(x)
-#define CUPS_LARGE_FREE(x) free(x)
+#define CUPS_LARGE_FREE free
 #define CUPS_LARGE_CALLOC(x, y) calloc(x, y)
+#define CUPS_LARGE_REALLOC realloc
+#define CUPS_LARGE_STRDUP strdup
 #endif
 
 

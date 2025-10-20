@@ -11,8 +11,6 @@
 
 #include "cups-private.h"
 
-#undef DEBUG_printf
-#define DEBUG_printf(...)
 
 //
 // Private structures...
@@ -71,7 +69,7 @@ ippFileClose(ipp_file_t *file)		// I - IPP data file
   if ((ret = cupsFileClose(file->fp)) == false)
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), 0);
 
-  free(file->filename);
+  CUPS_LARGE_FREE(file->filename);
 
   file->fp       = NULL;
   file->filename = NULL;
@@ -105,8 +103,8 @@ ippFileDelete(ipp_file_t *file)		// I - IPP data file
   }
 
   cupsFreeOptions(file->num_vars, file->vars);
-  free(file->buffer);
-  free(file);
+  CUPS_LARGE_FREE(file->buffer);
+  CUPS_LARGE_FREE(file);
 
   return (true);
 }
@@ -330,7 +328,7 @@ ippFileNew(ipp_file_t      *parent,	// I - Parent data file or `NULL` for none
 
 
   // Allocate memory...
-  if ((file = (ipp_file_t *)calloc(1, sizeof(ipp_file_t))) == NULL)
+  if ((file = (ipp_file_t *)CUPS_LARGE_CALLOC(1, sizeof(ipp_file_t))) == NULL)
     return (NULL);
 
   // Set callbacks and parent...
@@ -380,7 +378,7 @@ ippFileOpen(ipp_file_t *file,		// I - IPP data file
 
   // Save the file information and return...
   file->fp       = fp;
-  file->filename = strdup(filename);
+  file->filename = CUPS_LARGE_STRDUP(filename);
   file->mode     = *mode;
   file->column   = 0;
   file->linenum  = 1;
@@ -1541,7 +1539,7 @@ expand_buffer(ipp_file_t *file,		// I - IPP data file
     return (true);
 
   // Try allocating/expanding the current buffer...
-  if ((buffer = realloc(file->buffer, buffer_size)) == NULL)
+  if ((buffer = CUPS_LARGE_REALLOC(file->buffer, buffer_size)) == NULL)
     return (false);
 
   // Save new buffer and size...

@@ -13,6 +13,7 @@
 #  define _CUPS_RASTER_PRIVATE_H_
 #  include "raster.h"
 #  include "cups.h"
+#  include "cups-private.h"
 #  include "debug-private.h"
 #  include "string-private.h"
 #  ifdef _WIN32

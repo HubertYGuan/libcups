@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <cups/cups.h>
 #include <cups/thread.h>
+#include "cups-private.h"
 
 
 //

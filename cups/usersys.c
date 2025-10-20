@@ -735,7 +735,7 @@ _cupsSetDefaults(void)
   if (cc.filter_location[0] == '/')
   {
     // FilterLocation /regex/
-    if ((cg->filter_location_regex = (regex_t *)calloc(1, sizeof(regex_t))) != NULL)
+    if ((cg->filter_location_regex = (regex_t *)CUPS_LARGE_CALLOC(1, sizeof(regex_t))) != NULL)
     {
       char	*ptr = cc.filter_location + strlen(cc.filter_location) - 1;
 					// Pointer into FilterLocation value
@@ -747,7 +747,7 @@ _cupsSetDefaults(void)
       /* if (regcomp(cg->filter_location_regex, cc.filter_location + 1, REG_EXTENDED | REG_ICASE))
       {
         DEBUG_puts("1_cupsSetDefaults: Bad regular expression in FilterLocation - results not filtered.");
-        free(cg->filter_location_regex);
+        CUPS_LARGE_FREE(cg->filter_location_regex);
         cg->filter_location_regex = NULL;
       } */
     }

@@ -226,7 +226,7 @@ httpClearCookie(http_t *http)		// I - HTTP connection
   if (!http)
     return;
 
-  free(http->cookie);
+  CUPS_LARGE_FREE(http->cookie);
   http->cookie = NULL;
 }
 
@@ -247,7 +247,7 @@ httpClearFields(http_t *http)		// I - HTTP connection
   {
     for (field = HTTP_FIELD_ACCEPT; field < HTTP_FIELD_MAX; field ++)
     {
-      free(http->fields[field]);
+      CUPS_LARGE_FREE(http->fields[field]);
       http->fields[field] = NULL;
     }
 
@@ -288,12 +288,12 @@ httpClose(http_t *http)			// I - HTTP connection
 
   for (field = HTTP_FIELD_ACCEPT; field < HTTP_FIELD_MAX; field ++)
   {
-    free(http->default_fields[field]);
-    free(http->fields[field]);
+    CUPS_LARGE_FREE(http->default_fields[field]);
+    CUPS_LARGE_FREE(http->fields[field]);
   }
 
-  free(http->authstring);
-  free(http->cookie);
+  CUPS_LARGE_FREE(http->authstring);
+  CUPS_LARGE_FREE(http->cookie);
 
   _httpFreeCredentials(http->tls_credentials);
 
@@ -424,7 +424,7 @@ httpConnectAgain(http_t *http,		// I - HTTP connection
 
     DEBUG_printf("1httpConnectAgain: httpAddrConnect failed: %s", strerror(http->error));
 
-    free(orig_creds);
+    CUPS_LARGE_FREE(orig_creds);
 
     return (false);
   }
@@ -445,7 +445,7 @@ httpConnectAgain(http_t *http,		// I - HTTP connection
       httpAddrClose(NULL, http->fd);
       http->fd = -1;
 
-      free(orig_creds);
+      CUPS_LARGE_FREE(orig_creds);
 
       return (false);
     }
@@ -454,7 +454,7 @@ httpConnectAgain(http_t *http,		// I - HTTP connection
   {
     if (!http_tls_upgrade(http))
     {
-      free(orig_creds);
+      CUPS_LARGE_FREE(orig_creds);
 
       return (false);
     }
@@ -472,16 +472,16 @@ httpConnectAgain(http_t *http,		// I - HTTP connection
       // New and old credentials don't match and the new cert doesn't validate...
       _httpDisconnect(http);
 
-      free(orig_creds);
-      free(new_creds);
+      CUPS_LARGE_FREE(orig_creds);
+      CUPS_LARGE_FREE(new_creds);
 
       return (false);
     }
 
-    free(new_creds);
+    CUPS_LARGE_FREE(new_creds);
   }
 
-  free(orig_creds);
+  CUPS_LARGE_FREE(orig_creds);
 
   return (true);
 }
@@ -596,7 +596,7 @@ httpConnectURI(const char *uri,		// I - Service to connect to
       http = NULL;
     }
 
-    free(creds);
+    CUPS_LARGE_FREE(creds);
   }
 
   return (http);
@@ -2157,14 +2157,14 @@ httpSetAuthString(http_t     *http,	// I - HTTP connection
   if (!http)
     return;
 
-  free(http->authstring);
+  CUPS_LARGE_FREE(http->authstring);
 
   if (scheme)
   {
     // Set the current authorization string...
     size_t len = strlen(scheme) + (data ? strlen(data) + 1 : 0) + 1;
 
-    if ((http->authstring = malloc(len)) != NULL)
+    if ((http->authstring = CUPS_LARGE_MALLOC(len)) != NULL)
     {
       if (data)
 	snprintf(http->authstring, len, "%s %s", scheme, data);
@@ -2232,7 +2232,7 @@ httpSetCookie(http_t     *http,		// I - Connection
     clen   = strlen(http->cookie);
     ctotal = clen + strlen(cookie) + 2;
 
-    if ((temp = realloc(http->cookie, ctotal)) == NULL)
+    if ((temp = CUPS_LARGE_REALLOC(http->cookie, ctotal)) == NULL)
       return;
 
     http->cookie = temp;
@@ -2242,7 +2242,7 @@ httpSetCookie(http_t     *http,		// I - Connection
   else
   {
     // Just copy/set this cookie...
-    http->cookie = strdup(cookie);
+    http->cookie = CUPS_LARGE_STRDUP(cookie);
   }
 }
 
@@ -2266,9 +2266,9 @@ httpSetDefaultField(http_t       *http,	// I - HTTP connection
   if (!http || field <= HTTP_FIELD_UNKNOWN || field >= HTTP_FIELD_MAX)
     return;
 
-  free(http->default_fields[field]);
+  CUPS_LARGE_FREE(http->default_fields[field]);
 
-  http->default_fields[field] = value ? strdup(value) : NULL;
+  http->default_fields[field] = value ? CUPS_LARGE_STRDUP(value) : NULL;
 }
 
 
@@ -3235,7 +3235,7 @@ http_add_field(http_t       *http,	// I - HTTP connection
 
   if (!append && http->fields[field])
   {
-    free(http->fields[field]);
+    CUPS_LARGE_FREE(http->fields[field]);
 
     http->fields[field] = NULL;
   }
@@ -3261,7 +3261,7 @@ http_add_field(http_t       *http,	// I - HTTP connection
     // Expand the field value...
     char *mcombined;			// New value string
 
-    if ((mcombined = realloc(http->fields[field], total + 1)) != NULL)
+    if ((mcombined = CUPS_LARGE_REALLOC(http->fields[field], total + 1)) != NULL)
     {
       http->fields[field] = mcombined;
       cupsConcatString(mcombined, ", ", total + 1);
@@ -3271,7 +3271,7 @@ http_add_field(http_t       *http,	// I - HTTP connection
   else
   {
     // Allocate the field value...
-    http->fields[field] = strdup(value);
+    http->fields[field] = CUPS_LARGE_STRDUP(value);
   }
 
   DEBUG_printf("1http_add_field: append=%s, field=%d(%s), value=\"%s\".", append ? "true" : "false", field, http_fields[field], http && http->fields[field] ? http->fields[field] : "");
@@ -3329,8 +3329,8 @@ http_content_coding_finish(
 
         deflateEnd((z_stream *)http->stream);
 
-        free(http->sbuffer);
-        free(http->stream);
+        CUPS_LARGE_FREE(http->sbuffer);
+        CUPS_LARGE_FREE(http->stream);
 
         http->sbuffer = NULL;
         http->stream  = NULL;
@@ -3343,8 +3343,8 @@ http_content_coding_finish(
     case _HTTP_CODING_GUNZIP :
         inflateEnd((z_stream *)http->stream);
 
-        free(http->sbuffer);
-        free(http->stream);
+        CUPS_LARGE_FREE(http->sbuffer);
+        CUPS_LARGE_FREE(http->stream);
 
         http->sbuffer = NULL;
         http->stream  = NULL;
@@ -3433,7 +3433,7 @@ http_content_coding_start(
         // Window size for compression is 11 bits - optimal based on PWG Raster
         // sample files on pwg.org.  -11 is raw deflate, 27 is gzip, per ZLIB
         // documentation.
-	if ((http->stream = calloc(1, sizeof(z_stream))) == NULL)
+	if ((http->stream = CUPS_LARGE_CALLOC(1, sizeof(z_stream))) == NULL)
 	{
           CUPS_LARGE_FREE(http->sbuffer);
 
@@ -3445,8 +3445,8 @@ http_content_coding_start(
 
         if ((zerr = deflateInit2((z_stream *)http->stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, coding == _HTTP_CODING_DEFLATE ? -11 : 27, 7, Z_DEFAULT_STRATEGY)) < Z_OK)
         {
-          free(http->sbuffer);
-          free(http->stream);
+          CUPS_LARGE_FREE(http->sbuffer);
+          CUPS_LARGE_FREE(http->stream);
 
           http->sbuffer = NULL;
           http->stream  = NULL;
@@ -3470,7 +3470,7 @@ http_content_coding_start(
 
         // Window size for decompression is up to 15 bits (maximum supported).
         // -15 is raw inflate, 31 is gunzip, per ZLIB documentation.
-	if ((http->stream = calloc(1, sizeof(z_stream))) == NULL)
+	if ((http->stream = CUPS_LARGE_CALLOC(1, sizeof(z_stream))) == NULL)
 	{
           CUPS_LARGE_FREE(http->sbuffer);
 
@@ -3482,8 +3482,8 @@ http_content_coding_start(
 
         if ((zerr = inflateInit2((z_stream *)http->stream, coding == _HTTP_CODING_INFLATE ? -15 : 31)) < Z_OK)
         {
-          free(http->sbuffer);
-          free(http->stream);
+          CUPS_LARGE_FREE(http->sbuffer);
+          CUPS_LARGE_FREE(http->stream);
 
           http->sbuffer = NULL;
           http->stream  = NULL;
@@ -4041,7 +4041,7 @@ http_send(http_t       *http,		// I - HTTP connection
   // Some authentication strings can only be used once...
   if (http->fields[HTTP_FIELD_AUTHORIZATION] && http->authstring)
   {
-    free(http->authstring);
+    CUPS_LARGE_FREE(http->authstring);
     http->authstring = NULL;
   }
 

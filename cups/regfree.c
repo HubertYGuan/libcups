@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)regfree.c	8.3 (Berkeley) 3/20/94";
 #include <stdlib.h>
 #include <limits.h>
 #include <regex.h>
+#include "cups-private.h"
 
 #include "regex2.h"
 
@@ -68,18 +69,18 @@ regex_t *preg;
 	g->magic = 0;			/* mark it invalid */
 
 	if (g->strip != NULL)
-		free((char *)g->strip);
+		CUPS_LARGE_FREE((char *)g->strip);
 	if (g->sets != NULL)
-		free((char *)g->sets);
+		CUPS_LARGE_FREE((char *)g->sets);
 	if (g->setbits != NULL)
-		free((char *)g->setbits);
+		CUPS_LARGE_FREE((char *)g->setbits);
 	if (g->must != NULL)
-		free(g->must);
+		CUPS_LARGE_FREE(g->must);
 	if (g->charjump != NULL)
-		free(&g->charjump[CHAR_MIN]);
+		CUPS_LARGE_FREE(&g->charjump[CHAR_MIN]);
 	if (g->matchjump != NULL)
-		free(g->matchjump);
-	free((char *)g);
+		CUPS_LARGE_FREE(g->matchjump);
+	CUPS_LARGE_FREE((char *)g);
 }
 
 #endif /* !_NO_REGEX  */

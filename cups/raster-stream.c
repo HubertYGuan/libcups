@@ -172,9 +172,9 @@ cupsRasterClose(cups_raster_t *r)	// I - Stream to free
 {
   if (r != NULL)
   {
-    free(r->buffer);
-    free(r->pixels);
-    free(r);
+    CUPS_LARGE_FREE(r->buffer);
+    CUPS_LARGE_FREE(r->pixels);
+    CUPS_LARGE_FREE(r);
   }
 }
 
@@ -558,7 +558,7 @@ _cupsRasterNew(
 
   _cupsRasterClearError();
 
-  if ((r = calloc(sizeof(cups_raster_t), 1)) == NULL)
+  if ((r = CUPS_LARGE_CALLOC(sizeof(cups_raster_t), 1)) == NULL)
   {
     _cupsRasterAddError("Unable to allocate memory for raster stream: %s", strerror(errno));
     DEBUG_puts("1_cupsRasterNwq: Returning NULL.");
@@ -575,7 +575,7 @@ _cupsRasterNew(
     if (cups_raster_io(r, (unsigned char *)&(r->sync), sizeof(r->sync)) != sizeof(r->sync))
     {
       _cupsRasterAddError("Unable to read header from raster stream: %s", strerror(errno));
-      free(r);
+      CUPS_LARGE_FREE(r);
       DEBUG_puts("1_cupsRasterNew: Unable to read header, returning NULL.");
       return (NULL);
     }
@@ -583,7 +583,7 @@ _cupsRasterNew(
     if (r->sync != CUPS_RASTER_SYNC && r->sync != CUPS_RASTER_REVSYNC && r->sync != CUPS_RASTER_SYNCv1 && r->sync != CUPS_RASTER_REVSYNCv1 && r->sync != CUPS_RASTER_SYNCv2 && r->sync != CUPS_RASTER_REVSYNCv2 && r->sync != CUPS_RASTER_SYNCapple && r->sync != CUPS_RASTER_REVSYNCapple)
     {
       _cupsRasterAddError("Unknown raster format %08x.", r->sync);
-      free(r);
+      CUPS_LARGE_FREE(r);
       DEBUG_puts("1_cupsRasterNew: Unknown format, returning NULL.");
       return (NULL);
     }
@@ -604,7 +604,7 @@ _cupsRasterNew(
 	      sizeof(header))
       {
 	_cupsRasterAddError("Unable to read header from raster stream: %s", strerror(errno));
-	free(r);
+	CUPS_LARGE_FREE(r);
 	DEBUG_puts("1_cupsRasterNew: Unable to read header, returning NULL.");
 	return (NULL);
       }
@@ -646,7 +646,7 @@ _cupsRasterNew(
     if (cups_raster_io(r, (unsigned char *)&(r->sync), sizeof(r->sync)) < (ssize_t)sizeof(r->sync))
     {
       _cupsRasterAddError("Unable to write raster stream header: %s", strerror(errno));
-      free(r);
+      CUPS_LARGE_FREE(r);
       DEBUG_puts("1_cupsRasterNew: Unable to write header, returning NULL.");
       return (NULL);
     }
@@ -1268,9 +1268,9 @@ cupsRasterWritePixels(
       if ((size_t)len > r->bufsize)
       {
 	if (r->buffer)
-	  bufptr = realloc(r->buffer, len);
+	  bufptr = CUPS_LARGE_REALLOC(r->buffer, len);
 	else
-	  bufptr = malloc(len);
+	  bufptr = CUPS_LARGE_MALLOC(len);
 
 	if (!bufptr)
 	  return (0);
@@ -1448,9 +1448,9 @@ cups_raster_read(cups_raster_t *r,	// I - Raster stream
     unsigned char *rptr;		// Pointer in read buffer
 
     if (r->buffer)
-      rptr = realloc(r->buffer, (size_t)count);
+      rptr = CUPS_LARGE_REALLOC(r->buffer, (size_t)count);
     else
-      rptr = malloc((size_t)count);
+      rptr = CUPS_LARGE_MALLOC((size_t)count);
 
     if (!rptr)
       return (0);
@@ -1712,9 +1712,9 @@ cups_raster_update(cups_raster_t *r)	// I - Raster stream
   // Allocate the compression buffer...
   if (ret && r->compressed)
   {
-    free(r->pixels);
+    CUPS_LARGE_FREE(r->pixels);
 
-    if ((r->pixels = calloc(r->header.cupsBytesPerLine, 1)) == NULL)
+    if ((r->pixels = CUPS_LARGE_CALLOC(r->header.cupsBytesPerLine, 1)) == NULL)
     {
       _cupsRasterAddError("Unable to allocate %u bytes for raster line: %s", r->header.cupsBytesPerLine, strerror(errno));
 
@@ -1776,9 +1776,9 @@ cups_raster_write(
   if ((size_t)count > r->bufsize)
   {
     if (r->buffer)
-      wptr = realloc(r->buffer, count);
+      wptr = CUPS_LARGE_REALLOC(r->buffer, count);
     else
-      wptr = malloc(count);
+      wptr = CUPS_LARGE_MALLOC(count);
 
     if (!wptr)
     {

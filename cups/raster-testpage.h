@@ -152,16 +152,16 @@ cupsRasterWriteTest(
   yend2 = header->cupsHeight - yborder;
 
   // Allocate memory for the raster output...
-  if ((line = malloc(header->cupsBytesPerLine)) == NULL)
+  if ((line = CUPS_LARGE_MALLOC(header->cupsBytesPerLine)) == NULL)
   {
     _cupsRasterAddError("Unable to allocate %u bytes for line: %s", header->cupsBytesPerLine, strerror(errno));
     return (false);
   }
 
-  if ((bline = malloc(header->cupsBytesPerLine)) == NULL)
+  if ((bline = CUPS_LARGE_MALLOC(header->cupsBytesPerLine)) == NULL)
   {
     _cupsRasterAddError("Unable to allocate %u bytes for line: %s", header->cupsBytesPerLine, strerror(errno));
-    free(line);
+    CUPS_LARGE_FREE(line);
     return (false);
   }
 
@@ -1699,8 +1699,8 @@ cupsRasterWriteTest(
   }
 
   // Free memory and return...
-  free(line);
-  free(bline);
+  CUPS_LARGE_FREE(line);
+  CUPS_LARGE_FREE(bline);
 
   return (true);
 }

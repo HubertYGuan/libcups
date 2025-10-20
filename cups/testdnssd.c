@@ -67,7 +67,7 @@ main(int  argc,				// I - Number of command-line arguments
 
   // Clear test data...
   memset(&testdata, 0, sizeof(testdata));
-  testdata.messages = cupsArrayNew(NULL, NULL, NULL, 0, (cups_acopy_cb_t)strdup, (cups_afree_cb_t)free);
+  testdata.messages = cupsArrayNew(NULL, NULL, NULL, 0, (cups_acopy_cb_t)CUPS_LARGE_STRDUP, (cups_afree_cb_t)free);
 #if _WIN32
   snprintf(testdata.name, sizeof(testdata.name), "Test Service %d", (int)GetCurrentProcessId());
 #else

@@ -382,8 +382,8 @@ cupsCreateCredentials(
       }
     }
 
-    free(root_crtdata);
-    free(root_keydata);
+    CUPS_LARGE_FREE(root_crtdata);
+    CUPS_LARGE_FREE(root_keydata);
   }
 
   if (root_crt && root_key)
@@ -950,7 +950,7 @@ cupsGetCredentialsTrust(
       }
     }
 
-    free(tcreds);
+    CUPS_LARGE_FREE(tcreds);
   }
   else if ((cg->validate_certs || require_ca) && !cupsAreCredentialsValidForName(common_name, credentials))
   {
@@ -980,7 +980,7 @@ cupsGetCredentialsTrust(
 	if (trust != HTTP_TRUST_OK)
 	  _cupsSetError(IPP_STATUS_ERROR_CUPS_PKI, _("Credentials do not validate against site CA certificate."), true);
 
-	free(tcreds);
+	CUPS_LARGE_FREE(tcreds);
       }
     }
   }
@@ -1338,8 +1338,8 @@ cupsSignCredentialsRequest(
     }
   }
 
-  free(root_crtdata);
-  free(root_keydata);
+  CUPS_LARGE_FREE(root_crtdata);
+  CUPS_LARGE_FREE(root_keydata);
 
   if (!root_crt || !root_key)
   {
@@ -1424,7 +1424,7 @@ httpCopyPeerCredentials(http_t *http)	// I - HTTP connection
 					// PEM-encoded certificate
 	size_t	pemsize;		// Length of PEM-encoded certificate
 
-	if (pem && (credentials = realloc(credentials, alloc_creds + (pemsize = strlen(pem)) + 1)) != NULL)
+	if (pem && (credentials = CUPS_LARGE_REALLOC(credentials, alloc_creds + (pemsize = strlen(pem)) + 1)) != NULL)
 	{
 	  // Copy PEM-encoded data...
 	  memcpy(credentials + alloc_creds, pem, pemsize);
@@ -1432,7 +1432,7 @@ httpCopyPeerCredentials(http_t *http)	// I - HTTP connection
 	  alloc_creds += pemsize;
 	}
 
-        free(pem);
+        CUPS_LARGE_FREE(pem);
 
         certs ++;
         count --;
@@ -1463,13 +1463,13 @@ _httpCreateCredentials(
 
   DEBUG_printf("_httpCreateCredentials(credentials=\"%s\", key=\"%s\")", credentials, key);
 
-  if ((hcreds = calloc(1, sizeof(_http_tls_credentials_t))) == NULL)
+  if ((hcreds = CUPS_LARGE_CALLOC(1, sizeof(_http_tls_credentials_t))) == NULL)
     return (NULL);
 
   if ((err = gnutls_certificate_allocate_credentials(&hcreds->creds)) < 0)
   {
     DEBUG_printf("1_httpCreateCredentials: allocate_credentials error: %s", gnutls_strerror(err));
-    free(hcreds);
+    CUPS_LARGE_FREE(hcreds);
     return (NULL);
   }
 
@@ -1487,7 +1487,7 @@ _httpCreateCredentials(
       DEBUG_printf("1_httpCreateCredentials: set_x509_key_mem error: %s", gnutls_strerror(err));
 
       gnutls_certificate_free_credentials(hcreds->creds);
-      free(hcreds);
+      CUPS_LARGE_FREE(hcreds);
       hcreds = NULL;
     }
   }
@@ -1516,7 +1516,7 @@ _httpFreeCredentials(
     return;
 
   gnutls_certificate_free_credentials(hcreds->creds);
-  free(hcreds);
+  CUPS_LARGE_FREE(hcreds);
 }
 
 
@@ -1843,7 +1843,7 @@ _httpTLSStart(http_t *http)		// I - Connection to server
 
     DEBUG_printf("4_httpTLSStart: Using certificate \"%s\" and private key \"%s\".", crtfile, keyfile);
 
-    if ((credentials = calloc(1, sizeof(_http_tls_credentials_t))) == NULL)
+    if ((credentials = CUPS_LARGE_CALLOC(1, sizeof(_http_tls_credentials_t))) == NULL)
     {
       DEBUG_puts("4_httpTLSStart: cupsCreateCredentials failed.");
       http->error  = errno = EINVAL;
@@ -2261,7 +2261,7 @@ gnutls_load_crl(void)
 	{
 	  if (alloc_data == 0)
 	  {
-	    data       = malloc(2048);
+	    data       = CUPS_LARGE_MALLOC(2048);
 	    alloc_data = 2048;
 
 	    if (!data)
@@ -2269,7 +2269,7 @@ gnutls_load_crl(void)
 	  }
 	  else if ((num_data + strlen(line)) >= alloc_data)
 	  {
-	    unsigned char *tdata = realloc(data, alloc_data + 1024);
+	    unsigned char *tdata = CUPS_LARGE_REALLOC(data, alloc_data + 1024);
 					    // Expanded buffer
 
 	    if (!tdata)
@@ -2288,7 +2288,7 @@ gnutls_load_crl(void)
       cupsFileClose(fp);
 
       if (data)
-	free(data);
+	CUPS_LARGE_FREE(data);
     }
   }
 

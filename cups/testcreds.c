@@ -450,12 +450,12 @@ do_unit_tests(void)
       testBegin("cupsCopyCredentials(_site_)");
       data = cupsCopyCredentials(TEST_CERT_PATH, "_site_");
       testEnd(data != NULL);
-      free(data);
+      CUPS_LARGE_FREE(data);
 
       testBegin("cupsCopyCredentialsKey(_site_)");
       data = cupsCopyCredentialsKey(TEST_CERT_PATH, "_site_");
       testEnd(data != NULL);
-      free(data);
+      CUPS_LARGE_FREE(data);
     }
     else
     {
@@ -476,7 +476,7 @@ do_unit_tests(void)
       testBegin("cupsCopyCredentialsKey(altprinter w/alt names)");
       data = cupsCopyCredentialsKey(TEST_CERT_PATH, "altprinter");
       testEnd(data != NULL);
-      free(data);
+      CUPS_LARGE_FREE(data);
 
       testBegin("cupsCopyCredentialsRequest(altprinter w/alt names)");
       data = cupsCopyCredentialsRequest(TEST_CERT_PATH, "altprinter");
@@ -492,7 +492,7 @@ do_unit_tests(void)
 	else
 	  testEndMessage(false, "%s", cupsGetErrorString());
 
-        free(pubkey);
+        CUPS_LARGE_FREE(pubkey);
 
         testBegin("cupsSignCredentialsRequest(altprinter w/alt names)");
         if (cupsSignCredentialsRequest(TEST_CERT_PATH, "altprinter", data, "_site_", CUPS_CREDPURPOSE_ALL, CUPS_CREDUSAGE_ALL, /*cb*/NULL, /*cb_data*/NULL, time(NULL) + 30 * 86400))
@@ -504,7 +504,7 @@ do_unit_tests(void)
 	  testEndMessage(true, "%s", cupsGetErrorString());
         }
 
-        free(data);
+        CUPS_LARGE_FREE(data);
       }
     }
     else
@@ -520,7 +520,7 @@ do_unit_tests(void)
       testBegin("cupsCopyCredentialsKey(altprinter w/o alt names)");
       data = cupsCopyCredentialsKey(TEST_CERT_PATH, "altprinter");
       testEnd(data != NULL);
-      free(data);
+      CUPS_LARGE_FREE(data);
 
       testBegin("cupsCopyCredentialsRequest(altprinter w/o alt names)");
       data = cupsCopyCredentialsRequest(TEST_CERT_PATH, "altprinter");
@@ -536,13 +536,13 @@ do_unit_tests(void)
 	else
 	  testEndMessage(false, "%s", cupsGetErrorString());
 
-        free(pubkey);
+        CUPS_LARGE_FREE(pubkey);
 
         testBegin("cupsSignCredentialsRequest(altprinter w/o alt names)");
         if (cupsSignCredentialsRequest(TEST_CERT_PATH, "altprinter", data, "_site_", CUPS_CREDPURPOSE_ALL, CUPS_CREDUSAGE_ALL, /*cb*/NULL, /*cb_data*/NULL, time(NULL) + 30 * 86400))
         {
           testEnd(true);
-	  free(data);
+	  CUPS_LARGE_FREE(data);
 
 	  testBegin("cupsCopyCredentialsKey(altprinter w/o alt names)");
 	  data = cupsCopyCredentialsKey(TEST_CERT_PATH, "altprinter");
@@ -553,7 +553,7 @@ do_unit_tests(void)
 	  testEndMessage(false, "%s", cupsGetErrorString());
         }
 
-        free(data);
+        CUPS_LARGE_FREE(data);
       }
     }
     else
@@ -599,7 +599,7 @@ test_ca(const char *common_name,	// I - Common name
       return (1);
     }
 
-    if ((request = malloc((size_t)csrinfo.st_size + 1)) == NULL)
+    if ((request = CUPS_LARGE_MALLOC((size_t)csrinfo.st_size + 1)) == NULL)
     {
       fprintf(stderr, "testcreds: Unable to allocate memory for '%s': %s\n", csrfile, strerror(errno));
       close(csrfd);
@@ -625,16 +625,16 @@ test_ca(const char *common_name,	// I - Common name
   if (!cupsSignCredentialsRequest(TEST_CERT_PATH, common_name, request, root_name, CUPS_CREDPURPOSE_ALL, CUPS_CREDUSAGE_ALL, /*cb*/NULL, /*cb_data*/NULL, time(NULL) + days * 86400))
   {
     fprintf(stderr, "testcreds: Unable to create certificate (%s)\n", cupsGetErrorString());
-    free(request);
+    CUPS_LARGE_FREE(request);
     return (1);
   }
 
-  free(request);
+  CUPS_LARGE_FREE(request);
 
   if ((cert = cupsCopyCredentials(TEST_CERT_PATH, common_name)) != NULL)
   {
     puts(cert);
-    free(cert);
+    CUPS_LARGE_FREE(cert);
   }
   else
   {
@@ -680,7 +680,7 @@ test_cert(
   if ((cert = cupsCopyCredentials(TEST_CERT_PATH, common_name)) != NULL)
   {
     puts(cert);
-    free(cert);
+    CUPS_LARGE_FREE(cert);
   }
   else
   {
@@ -691,7 +691,7 @@ test_cert(
   if ((key = cupsCopyCredentialsKey(TEST_CERT_PATH, common_name)) != NULL)
   {
     puts(key);
-    free(key);
+    CUPS_LARGE_FREE(key);
   }
   else
   {
@@ -753,7 +753,7 @@ test_client(const char *uri)		// I - URI
     printf("     ValidName: %s\n", cupsAreCredentialsValidForName(hostname, hcreds) ? "true" : "false");
     printf("          Info: \"%s\"\n", hinfo);
 
-    free(hcreds);
+    CUPS_LARGE_FREE(hcreds);
   }
   else
   {
@@ -796,7 +796,7 @@ test_csr(
   if ((csr = cupsCopyCredentialsRequest(TEST_CERT_PATH, common_name)) != NULL)
   {
     puts(csr);
-    free(csr);
+    CUPS_LARGE_FREE(csr);
   }
   else
   {
@@ -986,7 +986,7 @@ test_show(const char *common_name)	// I - Common name
     printf("     ValidName: %s\n", cupsAreCredentialsValidForName(common_name, tcreds) ? "true" : "false");
     printf("          Info: \"%s\"\n", tinfo);
 
-    free(tcreds);
+    CUPS_LARGE_FREE(tcreds);
   }
   else
   {

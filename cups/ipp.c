@@ -17,9 +17,6 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
 
-#undef DEBUG_printf
-#define DEBUG_printf(...)
-
 //
 // Local functions...
 //
@@ -55,7 +52,7 @@ _cupsBufferGet(size_t size)		// I - Size required
 
   if (!buffer)
   {
-    if ((buffer = malloc(sizeof(_cups_buffer_t) + size - 1)) == NULL)
+    if ((buffer = CUPS_LARGE_MALLOC(sizeof(_cups_buffer_t) + size - 1)) == NULL)
       return (NULL);
 
     buffer->next     = cg->cups_buffers;
@@ -294,7 +291,7 @@ ippAddCredentialsString(
     return (NULL);
 
   // Copy the value string and figure out the number of values...
-  if ((cvalue = strdup(credentials)) == NULL)
+  if ((cvalue = CUPS_LARGE_STRDUP(credentials)) == NULL)
     return (NULL);
 
   for (num_values = 0, cptr = cvalue; cptr;)
@@ -344,7 +341,7 @@ ippAddCredentialsString(
   }
 
   // Free the copied string and return...
-  free(cvalue);
+  CUPS_LARGE_FREE(cvalue);
 
   return (attr);
 }
@@ -524,7 +521,7 @@ ippAddOctetString(ipp_t      *ipp,	// I - IPP message
 
   if (data)
   {
-    if ((attr->values[0].unknown.data = malloc((size_t)datalen)) == NULL)
+    if ((attr->values[0].unknown.data = CUPS_LARGE_MALLOC((size_t)datalen)) == NULL)
     {
       ippDeleteAttribute(ipp, attr);
       return (NULL);
@@ -858,6 +855,7 @@ ippAddString(ipp_t      *ipp,		// I - IPP message
   {
     attr->values[0].string.language = (char *)language;
     attr->values[0].string.text     = (char *)value;
+    DEBUG_printf("ippAddString: adding const values: lang %s, text %s", language ? language : "(nil)", value ? value : "(nil)");
   }
   else
   {
@@ -872,6 +870,8 @@ ippAddString(ipp_t      *ipp,		// I - IPP message
 	attr->values[0].string.text = _cupsStrAlloc(ipp_lang_code(value, code, sizeof(code)));
       else
 	attr->values[0].string.text = _cupsStrAlloc(value);
+
+  DEBUG_printf("ippaddstring: _cupsStrAlloc'd: %s, tag: %d", attr->values[0].string.text ? attr->values[0].string.text : "(nil)", value_tag);
     }
   }
 
@@ -1470,7 +1470,7 @@ ippCopyAttribute(
 
 	  if (dstval->unknown.length > 0)
 	  {
-	    if ((dstval->unknown.data = malloc((size_t)dstval->unknown.length)) == NULL)
+	    if ((dstval->unknown.data = CUPS_LARGE_MALLOC((size_t)dstval->unknown.length)) == NULL)
 	      dstval->unknown.length = 0;
 	    else
 	      memcpy(dstval->unknown.data, srcval->unknown.data, (size_t)dstval->unknown.length);
@@ -1533,7 +1533,7 @@ ippCopyAttributes(
 // 'ippCopyCredentialsString()' - Copy a credentials value from an IPP attribute.
 //
 // This function concatenates the 1setOf text credential values of an attribute,
-// separated by newlines.  The returned string must be freed using the `free`
+// separated by newlines.  The returned string must be freed using the `CUPS_LARGE_FREE`
 // function.
 //
 
@@ -1559,7 +1559,7 @@ ippCopyCredentialsString(
     if (slen > 0)
     {
       // Allocate memory...
-      if ((s = malloc(slen + 1)) != NULL)
+      if ((s = CUPS_LARGE_MALLOC(slen + 1)) != NULL)
       {
 	for (i = 0, ptr = s; i < attr->num_values; i ++)
 	{
@@ -2849,7 +2849,7 @@ ippSetOctetString(
       if (value->unknown.data)
       {
         // Free previous data...
-	free(value->unknown.data);
+	CUPS_LARGE_FREE(value->unknown.data);
 
 	value->unknown.data   = NULL;
         value->unknown.length = 0;
@@ -2859,7 +2859,7 @@ ippSetOctetString(
       {
 	void	*temp;			// Temporary data pointer
 
-	if ((temp = malloc((size_t)datalen)) != NULL)
+	if ((temp = CUPS_LARGE_MALLOC((size_t)datalen)) != NULL)
 	{
 	  memcpy(temp, data, (size_t)datalen);
 
@@ -4829,6 +4829,8 @@ ipp_add_attr(ipp_t      *ipp,		// I - IPP message
   else
     alloc_values = (num_values + IPP_MAX_VALUES - 1) & (size_t)~(IPP_MAX_VALUES - 1);
 
+  DEBUG_printf("ipp_add_attr: allocating %lu bytes", sizeof(ipp_attribute_t) + (size_t)(alloc_values - 1) * sizeof(_ipp_value_t));
+
   attr = CUPS_LARGE_CALLOC(1, sizeof(ipp_attribute_t) + (size_t)(alloc_values - 1) * sizeof(_ipp_value_t));
 
   if (attr)
@@ -4933,7 +4935,7 @@ ipp_free_values(ipp_attribute_t *attr,	// I - Attribute to free values from
 	  {
 	    if (value->unknown.data)
 	    {
-	      free(value->unknown.data);
+	      CUPS_LARGE_FREE(value->unknown.data);
 	      value->unknown.data = NULL;
 	    }
 	  }
@@ -5449,7 +5451,7 @@ ipp_read_io(void        *src,		// I - Data source
 	      goto rollback;
             }
 
-	    // Finally, reallocate the attribute array as needed...
+	    // Finally, CUPS_LARGE_REALLOCate the attribute array as needed...
 	    if ((value = ipp_set_value(ipp, &attr, attr->num_values)) == NULL)
 	      goto rollback;
 	  }
@@ -5804,7 +5806,7 @@ ipp_read_io(void        *src,		// I - Data source
 
 	        if (n > 0)
 		{
-		  if ((value->unknown.data = malloc((size_t)n)) == NULL)
+		  if ((value->unknown.data = CUPS_LARGE_MALLOC((size_t)n)) == NULL)
 		  {
 		    _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), false);
 		    DEBUG_puts("1ipp_read_io: Unable to allocate value");
@@ -5922,7 +5924,7 @@ ipp_set_value(ipp_t           *ipp,	// IO - IPP message
   DEBUG_printf("4ipp_set_value: Reallocating for up to %u values.", (unsigned)alloc_values);
 
   // Reallocate memory...
-  if ((temp = realloc(temp, sizeof(ipp_attribute_t) + (size_t)(alloc_values - 1) * sizeof(_ipp_value_t))) == NULL)
+  if ((temp = CUPS_LARGE_REALLOC(temp, sizeof(ipp_attribute_t) + (size_t)(alloc_values - 1) * sizeof(_ipp_value_t))) == NULL)
   {
     _cupsSetError(IPP_STATUS_ERROR_INTERNAL, strerror(errno), false);
     DEBUG_puts("4ipp_set_value: Unable to resize attribute.");

@@ -16,7 +16,7 @@
 // 'cupsLocalizeNotifySubject()' - Return the localized subject for the given notification message.
 //
 // This function returns a localized subject string for the given notification
-// message.  The returned string must be freed by the caller using `free`.
+// message.  The returned string must be freed by the caller using `CUPS_LARGE_FREE`.
 //
 
 char *					// O - Subject string or `NULL`
@@ -118,7 +118,7 @@ cupsLocalizeNotifySubject(
   }
 
   // Duplicate and return the subject string...
-  return (strdup(buffer));
+  return (CUPS_LARGE_STRDUP(buffer));
 }
 
 
@@ -126,7 +126,7 @@ cupsLocalizeNotifySubject(
 // 'cupsLocalizeNotifyText()' - Return the localized text for the given notification message.
 //
 // This function returns a localized text string for the given notification
-// message.  The returned string must be freed by the caller using `free`.
+// message.  The returned string must be freed by the caller using `CUPS_LARGE_FREE`.
 //
 
 char *					// O - Message text or `NULL`
@@ -146,5 +146,5 @@ cupsLocalizeNotifyText(
     return (NULL);
 
   // Return a copy...
-  return (strdup(notify_text->values[0].string.text));
+  return (CUPS_LARGE_STRDUP(notify_text->values[0].string.text));
 }

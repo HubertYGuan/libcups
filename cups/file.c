@@ -133,16 +133,16 @@ cupsFileClose(cups_file_t *fp)		// I - CUPS file
   }
 
   // If this is one of the cupsFileStdin/out/err files, return now and don't
-  // actually free memory or close (these last the life of the process...)
+  // actually CUPS_LARGE_FREE memory or close (these last the life of the process...)
   if (fp->is_stdio)
     return (status);
 
-  // Save the file descriptor we used and free memory...
+  // Save the file descriptor we used and CUPS_LARGE_FREE memory...
   fd   = fp->fd;
   mode = fp->mode;
 
-  free(fp->printf_buffer);
-  free(fp);
+  CUPS_LARGE_FREE(fp->printf_buffer);
+  CUPS_LARGE_FREE(fp);
 
   // Close the file, returning the close status...
   if (mode == 's')
@@ -744,7 +744,7 @@ cupsFileOpenFd(int        fd,		// I - File descriptor
     return (NULL);
 
   // Allocate memory...
-  if ((fp = calloc(1, sizeof(cups_file_t))) == NULL)
+  if ((fp = CUPS_LARGE_CALLOC(1, sizeof(cups_file_t))) == NULL)
     return (NULL);
 
   // Open the file...
@@ -782,14 +782,14 @@ cupsFileOpenFd(int        fd,		// I - File descriptor
 
 	  if (!cups_write(fp, (char *)header, 10))
 	  {
-            free(fp);
+            CUPS_LARGE_FREE(fp);
 	    return (NULL);
 	  }
 
           // Initialize the compressor...
           if (deflateInit2(&(fp->stream), mode[1] - '0', Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) < Z_OK)
           {
-            free(fp);
+            CUPS_LARGE_FREE(fp);
 	    return (NULL);
           }
 
@@ -877,7 +877,7 @@ cupsFilePrintf(cups_file_t *fp,		// I - CUPS file
   if (!fp->printf_buffer)
   {
     // Start with an 1k printf buffer...
-    if ((fp->printf_buffer = malloc(1024)) == NULL)
+    if ((fp->printf_buffer = CUPS_LARGE_MALLOC(1024)) == NULL)
       return (false);
 
     fp->printf_size = 1024;
@@ -899,7 +899,7 @@ cupsFilePrintf(cups_file_t *fp,		// I - CUPS file
       return (-1);
     }
 
-    if ((temp = realloc(fp->printf_buffer, (size_t)(bytes + 1))) == NULL)
+    if ((temp = CUPS_LARGE_REALLOC(fp->printf_buffer, (size_t)(bytes + 1))) == NULL)
     {
       va_end(ap);
       return (-1);

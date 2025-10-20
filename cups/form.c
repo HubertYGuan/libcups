@@ -125,7 +125,7 @@ cupsFormDecode(const char    *data,	// I - URL-encoded form data
 // This function encodes a CUPS options array as URL-encoded form data with an
 // optional URL prefix, returning an allocated string.
 //
-// Use `free` to return the memory used for the string.
+// Use `CUPS_LARGE_FREE` to return the memory used for the string.
 //
 
 char *					// O - URL-encoded form data
@@ -204,7 +204,7 @@ cupsFormEncode(const char    *url,	// I - URL or `NULL` for none
   // Nul-terminate and return a copy...
   *bufptr = '\0';
 
-  return (strdup(buffer));
+  return (CUPS_LARGE_STRDUP(buffer));
 
   // Report encoding errors here...
   encode_error:

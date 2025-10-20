@@ -129,7 +129,7 @@ cupsArrayAddStrings(cups_array_t *a,	// I - Array
     if (!cupsArrayFind(a, (void *)s))
       status = cupsArrayAdd(a, (void *)s);
   }
-  else if ((buffer = strdup(s)) == NULL)
+  else if ((buffer = CUPS_LARGE_STRDUP(s)) == NULL)
   {
     status = false;
   }
@@ -183,7 +183,7 @@ cupsArrayAddStrings(cups_array_t *a,	// I - Array
         status &= cupsArrayAdd(a, start);
     }
 
-    free(buffer);
+    CUPS_LARGE_FREE(buffer);
   }
 
   return (status);
@@ -211,7 +211,7 @@ cupsArrayClear(cups_array_t *a)		// I - Array
     void	**e;			// Current element
 
     for (i = a->num_elements, e = a->elements; i > 0; i --, e ++)
-      (a->freefunc)(*e, a->data);
+      (a->freefunc)(*e);
   }
 
   // Set the number of elements to 0; we don't actually free the memory
@@ -242,9 +242,9 @@ cupsArrayDelete(cups_array_t *a)	// I - Array
   cupsArrayClear(a);
 
   // Free the other buffers...
-  free(a->elements);
-  free(a->hash);
-  free(a);
+  CUPS_LARGE_FREE(a->elements);
+  CUPS_LARGE_FREE(a->hash);
+  CUPS_LARGE_FREE(a);
 }
 
 
@@ -263,7 +263,7 @@ cupsArrayDup(cups_array_t *a)		// I - Array
     return (NULL);
 
   // Allocate memory for the array...
-  da = calloc(1, sizeof(cups_array_t));
+  da = CUPS_LARGE_CALLOC(1, sizeof(cups_array_t));
   if (!da)
     return (NULL);
 
@@ -281,10 +281,10 @@ cupsArrayDup(cups_array_t *a)		// I - Array
   if (a->num_elements)
   {
     // Allocate memory for the elements...
-    da->elements = malloc((size_t)a->num_elements * sizeof(void *));
+    da->elements = CUPS_LARGE_MALLOC((size_t)a->num_elements * sizeof(void *));
     if (!da->elements)
     {
-      free(da);
+      CUPS_LARGE_FREE(da);
       return (NULL);
     }
 
@@ -628,16 +628,8 @@ cupsArrayNew(cups_array_cb_t  f,	// I - Comparison callback function or `NULL` f
 
 
   // Allocate memory for the array...
-  if (ff != (cups_afree_cb_t)CUPS_LARGE_FREE)
-  {
-    if ((a = calloc(1, sizeof(cups_array_t))) == NULL)
-      return (NULL);
-  }
-  else
-  {
-    if ((a = CUPS_LARGE_CALLOC(1, sizeof(cups_array_t))) == NULL)
-      return (NULL);
-  }
+  if ((a = CUPS_LARGE_CALLOC(1, sizeof(cups_array_t))) == NULL)
+    return (NULL);
 
   a->compare   = f;
   a->data      = d;
@@ -650,11 +642,11 @@ cupsArrayNew(cups_array_cb_t  f,	// I - Comparison callback function or `NULL` f
   {
     a->hashfunc  = hf;
     a->hashsize  = hsize;
-    a->hash      = malloc((size_t)hsize * sizeof(size_t));
+    a->hash      = CUPS_LARGE_MALLOC((size_t)hsize * sizeof(size_t));
 
     if (!a->hash)
     {
-      free(a);
+      CUPS_LARGE_FREE(a);
       return (NULL);
     }
 
@@ -670,6 +662,7 @@ cupsArrayNew(cups_array_cb_t  f,	// I - Comparison callback function or `NULL` f
   {
     a->freefunc = (cups_afree_cb_t)CUPS_LARGE_FREE;
   }
+  
   return (a);
 }
 
@@ -730,7 +723,7 @@ cupsArrayRemove(cups_array_t *a,	// I - Array
   a->num_elements --;
 
   if (a->freefunc)
-    (a->freefunc)(a->elements[current], a->data);
+    (a->freefunc)(a->elements[current]);
 
   if (current < a->num_elements)
     memmove(a->elements + current, a->elements + current + 1, (a->num_elements - current) * sizeof(void *));
@@ -819,7 +812,7 @@ cups_array_add(cups_array_t *a,		// I - Array
 		current;		// Current element
   int		diff;			// Comparison with current element
 
-
+  DEBUG_printf("cups_array_add: %p, %p, %d", a, e, insert);
   // Verify we have room for the new element...
   if (a->num_elements >= a->alloc_elements)
   {
@@ -835,7 +828,7 @@ cups_array_add(cups_array_t *a,		// I - Array
     else
       count = a->alloc_elements + 1024;
 
-    if ((temp = realloc(a->elements, count * sizeof(void *))) == NULL)
+    if ((temp = CUPS_LARGE_REALLOC(a->elements, count * sizeof(void *))) == NULL)
       return (false);
 
     a->alloc_elements = count;

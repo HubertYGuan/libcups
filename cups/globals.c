@@ -162,7 +162,7 @@ cups_globals_alloc(void)
   
   const char	*cups_userconfig = getenv("CUPS_USERCONFIG");
 					// Location of user config files
-  _cups_globals_t *cg = calloc(1, sizeof(_cups_globals_t));
+  _cups_globals_t *cg = CUPS_LARGE_CALLOC(1, sizeof(_cups_globals_t));
 					// Pointer to global data
 #ifdef _WIN32
   HKEY		key;			// Registry key
@@ -178,7 +178,7 @@ cups_globals_alloc(void)
 
   if (!cg)
   {
-    LOG_INF("could not calloc cg: size %u", sizeof(_cups_globals_t));
+    LOG_INF("could not CUPS_LARGE_CALLOC cg: size %u", sizeof(_cups_globals_t));
     return (NULL);
   }
 
@@ -259,7 +259,7 @@ cups_globals_alloc(void)
 
   DEBUG_printf("cups_globals_alloc: userconfig=\"%s\"", userconfig);
 
-  cg->userconfig = strdup(userconfig);
+  cg->userconfig = CUPS_LARGE_STRDUP(userconfig);
 
 #else
   const char	*home = getenv("HOME");	// HOME environment variable
@@ -300,13 +300,13 @@ cups_globals_alloc(void)
   if (!getuid())
   {
     // When running as root, make "userconfig" the same as "sysconfig"...
-    cg->userconfig = strdup(cg->sysconfig);
+    cg->userconfig = CUPS_LARGE_STRDUP(cg->sysconfig);
     return (cg);
   }
   else if (cups_userconfig)
   {
     // Use the value of the CUPS_USERCONFIG environment variable...
-    cg->userconfig = strdup(cups_userconfig);
+    cg->userconfig = CUPS_LARGE_STRDUP(cups_userconfig);
     return (cg);
   }
 
@@ -355,7 +355,7 @@ cups_globals_alloc(void)
 #  endif // __APPLE__
 
   // Can't use _cupsStrAlloc since it causes a loop with debug logging enabled
-  cg->userconfig = strdup(temp);
+  cg->userconfig = CUPS_LARGE_STRDUP(temp);
 #endif // _WIN32
 
   return (cg);
@@ -379,7 +379,7 @@ cups_globals_free(_cups_globals_t *cg)	// I - Pointer to global data
   for (buffer = cg->cups_buffers; buffer; buffer = next)
   {
     next = buffer->next;
-    free(buffer);
+    CUPS_LARGE_FREE(buffer);
   }
 
   cupsArrayDelete(cg->leg_size_lut);
@@ -399,12 +399,12 @@ cups_globals_free(_cups_globals_t *cg)	// I - Pointer to global data
   if (cg->filter_location_regex)
   {
     regfree(cg->filter_location_regex);
-    free(cg->filter_location_regex);
+    CUPS_LARGE_FREE(cg->filter_location_regex);
   }
 
-  free(cg->userconfig);
-  free(cg->raster_error.start);
-  free(cg);
+  CUPS_LARGE_FREE(cg->userconfig);
+  CUPS_LARGE_FREE(cg->raster_error.start);
+  CUPS_LARGE_FREE(cg);
 }
 
 
