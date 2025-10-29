@@ -491,7 +491,7 @@ load_words(const char   *filename,	// I - File to load
            cups_array_t *array)		// I - Array to add to
 {
   struct fs_file_t  zfp;			// Test file
-  char		word[256];		// Word from file
+  char		word[16];		// Word from file
   fs_file_t_init(&zfp);
 
   // testProgress();
@@ -505,9 +505,11 @@ load_words(const char   *filename,	// I - File to load
 
   int i = 0;
 
-  while (fs_read(&zfp, word, 16) > 0 && i < 16)
+  while (fs_read(&zfp, word, 15) > 0 && i < 64)
   {
     ++i;
+    word[15] = 0;
+    LOG_INF("load_words: read %s", word);
     if (!cupsArrayFind(array, word))
       cupsArrayAdd(array, word);
   }

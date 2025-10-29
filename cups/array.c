@@ -654,14 +654,7 @@ cupsArrayNew(cups_array_cb_t  f,	// I - Comparison callback function or `NULL` f
   }
 
   a->copyfunc = cf;
-  if (ff)
-  {
-    a->freefunc = ff;
-  }
-  else
-  {
-    a->freefunc = (cups_afree_cb_t)CUPS_LARGE_FREE;
-  }
+  a->freefunc = ff;
   
   return (a);
 }
@@ -723,8 +716,10 @@ cupsArrayRemove(cups_array_t *a,	// I - Array
   a->num_elements --;
 
   if (a->freefunc)
+  {
+    DEBUG_printf("cupsArrayRemove: removing %p from array %p", e, a);
     (a->freefunc)(a->elements[current]);
-
+  }
   if (current < a->num_elements)
     memmove(a->elements + current, a->elements + current + 1, (a->num_elements - current) * sizeof(void *));
 
@@ -812,7 +807,6 @@ cups_array_add(cups_array_t *a,		// I - Array
 		current;		// Current element
   int		diff;			// Comparison with current element
 
-  DEBUG_printf("cups_array_add: %p, %p, %d", a, e, insert);
   // Verify we have room for the new element...
   if (a->num_elements >= a->alloc_elements)
   {

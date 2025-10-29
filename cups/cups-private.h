@@ -44,8 +44,8 @@ typedef int mode_t;			// Windows doesn't support mode_t type @private@
 #include <zephyr/multi_heap/shared_multi_heap.h>
 #define CUPS_LARGE_MALLOC(x) shared_multi_heap_alloc(SMH_REG_ATTR_EXTERNAL, x)
 #define CUPS_LARGE_FREE shared_multi_heap_free
+#define CUPS_LARGE_REALLOC(x, y) shared_multi_heap_realloc(SMH_REG_ATTR_EXTERNAL, x, y)
 extern void *CUPS_LARGE_CALLOC(size_t nelem, size_t elsize);
-extern void *CUPS_LARGE_REALLOC(void *old_ptr, size_t new_size);
 extern char *CUPS_LARGE_STRDUP(const char *str);
 #else
 #define CUPS_LARGE_MALLOC(x) malloc(x)

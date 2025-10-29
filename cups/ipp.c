@@ -4836,7 +4836,7 @@ ipp_add_attr(ipp_t      *ipp,		// I - IPP message
   if (attr)
   {
     // Initialize attribute...
-    DEBUG_printf("4debug_alloc: %p %s %s%s (%u values)", (void *)attr, name, num_values > 1 ? "1setOf " : "", ippTagString(value_tag), (unsigned)num_values);
+    DEBUG_printf("4debug_alloc: %p %s %s%s (%u values)", (void *)attr, name ? name : "(nil)", num_values > 1 ? "1setOf " : "", ippTagString(value_tag), (unsigned)num_values);
 
     if (name)
       attr->name = _cupsStrAlloc(name);
@@ -5940,7 +5940,7 @@ ipp_set_value(ipp_t           *ipp,	// IO - IPP message
 #ifndef __clang_analyzer__
     DEBUG_printf("4debug_free: %p %s", (void *)*attr, temp->name);
 #endif // !__clang_analyzer__
-    DEBUG_printf("4debug_alloc: %p %s %s%s (%u)", (void *)temp, temp->name, temp->num_values > 1 ? "1setOf " : "", ippTagString(temp->value_tag), (unsigned)temp->num_values);
+    DEBUG_printf("4debug_alloc: %p %s %s%s (%u)", (void *)temp, temp->name ? temp->name : "(nil)", temp->num_values > 1 ? "1setOf " : "", ippTagString(temp->value_tag), (unsigned)temp->num_values);
 
     if (ipp->current == *attr && ipp->prev)
     {
