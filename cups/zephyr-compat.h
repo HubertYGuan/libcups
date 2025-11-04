@@ -9,6 +9,7 @@
 #define X_OK 0
 #define R_OK 0
 #define W_OK 0
+#define WCOREDUMP(status) 	((status) & 0x80)
 #ifdef __cplusplus
 extern "C" {
 #endif
